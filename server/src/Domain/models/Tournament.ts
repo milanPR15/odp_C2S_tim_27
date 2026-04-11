@@ -1,12 +1,15 @@
+import { TournamentFormat } from "../enums/TournamentFormat";
+import { TournamentStatus } from "../enums/TournamentStatus";
+
 export class Tournament{
     public constructor(
-        public id: number = 0,
+        public tournament_id: number = 0,
         public name: string = "",
-        public gameId: number = 0, 
-        public format: 'single_elimination' | 'double_elimination' | 'round_robin' = 'single_elimination',
-        public maxTeams: number = 16,
-        public registrationDeadline: Date = new Date(), 
-        public prizePool: string | null = null,
-        public status: 'upcoming' | 'ongoing' | 'completed' = 'upcoming'
+        public game_id: number = 0, 
+        public format: TournamentFormat = TournamentFormat.SINGLE_ELIMINATION,
+        public max_teams: number = 0,
+        public entry_deadline: Date = new Date(), 
+        public prize_pool: number = 0,
+        public status: TournamentStatus = TournamentStatus.UPCOMING,
     ){}
 }

@@ -1,0 +1,12 @@
+import { RegistrationStatus } from "../enums/RegistrationStatus";
+
+export class TournamentRegistration{
+    constructor(
+        public id: number = 0,
+        public tournament_id: number = 0, 
+        public team_id: number = 0,
+        public status:  RegistrationStatus = RegistrationStatus.PENDING, 
+        public seed: number | null = null,
+        public registered_at: Date = new Date()
+    ){}
+}

@@ -1,9 +1,9 @@
 export class Game {
     public constructor(
-        public id: number = 0, 
+        public game_id: number = 0, 
         public title: string = "",
         public genre: string = "",
-        public maxPlayersPerTeam: number = 5,
-        public logo: string | null = null
+        public max_players: number = 0,
+        public logo: string = ""
     ){}
 }
