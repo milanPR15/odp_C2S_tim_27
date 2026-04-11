@@ -5,7 +5,7 @@ export class EntityDto {
   constructor(
     public id: number            = 0,
     public userId: number        = 0,
-    public status: EntityStatus  = EntityStatus.PENDING,
+    public status: EntityStatus  = EntityStatus.SCHEDULED,
     public createdAt: Date       = new Date(),
   ) {}
 }
