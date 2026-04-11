@@ -5,6 +5,7 @@ export class Team{
         public tag: string = "", 
         public logo: string = "",
         public description: string | null = null,
-        public createdAt: Date = new Date()
+        public createdAt: Date = new Date(), 
+        public updatedAt: Date = new Date()
     ){}
 }

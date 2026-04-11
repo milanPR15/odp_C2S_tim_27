@@ -11,5 +11,7 @@ export class Tournament{
         public entry_deadline: Date = new Date(), 
         public prize_pool: number = 0,
         public status: TournamentStatus = TournamentStatus.UPCOMING,
+        public createdAt: Date = new Date(), 
+        public updatedAt: Date = new Date()
     ){}
 }

@@ -7,7 +7,8 @@ export class Match{
         public team1_id: number | null = null,
         public team2_id: number | null = null,
         public scheduledAt: Date = new Date(),
-        public status: MatchStatus = MatchStatus.SCHEDULED,
+        public updatedAt: Date = new Date(),
+        public createdAt: Date =  new Date(),
         public result: string | null = null
     ){}
 }
