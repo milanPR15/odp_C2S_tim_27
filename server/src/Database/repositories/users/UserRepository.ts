@@ -12,7 +12,7 @@ export class UserRepository implements IUserRepository {
   ) {}
 
   private map(r: RowDataPacket): User {
-    return new User(r.id, r.username, r.email, r.role as UserRole, r.passwordHash, r.isActive);
+    return new User(r.id, r.gamer_tag, r.full_name, r.email, r.role as UserRole, r.passwordHash, r.isActive);
   }
 
   async create(user: User): Promise<User> {
@@ -20,11 +20,11 @@ export class UserRepository implements IUserRepository {
     if (!res) return new User();
     try {
       const [result] = await res.conn.execute<ResultSetHeader>(
-        `INSERT INTO users (username, email, role, passwordHash) VALUES (?, ?, ?, ?)`,
-        [user.username, user.email, user.role, user.passwordHash]
+        `INSERT INTO users (gamer_tag, full_name, email, role, passwordHash) VALUES (?, ?, ?, ?, ?)`,
+        [user.username, user.fullname, user.email, user.role, user.passwordHash]
       );
       if (result.insertId === 0) return new User();
-      return new User(result.insertId, user.username, user.email, user.role, user.passwordHash);
+      return new User(result.insertId, user.username, user.fullname, user.email, user.role, user.passwordHash);
     } catch (err) {
       this.logger.error("UserRepository", "create failed", err);
       return new User();
@@ -47,7 +47,7 @@ export class UserRepository implements IUserRepository {
     const res = await this.db.getReadConnection();
     if (!res) return new User();
     try {
-      const [rows] = await res.conn.execute<RowDataPacket[]>(`SELECT * FROM users WHERE username = ?`, [username]);
+      const [rows] = await res.conn.execute<RowDataPacket[]>(`SELECT * FROM users WHERE gamer_tag = ?`, [username]);
       return rows.length > 0 ? this.map(rows[0]) : new User();
     } catch (err) {
       this.logger.error("UserRepository", "findByUsername failed", err);
@@ -84,7 +84,7 @@ export class UserRepository implements IUserRepository {
     if (!res) return false;
     try {
       const [result] = await res.conn.execute<ResultSetHeader>(
-        `UPDATE users SET username = ?, email = ?, role = ?, isActive = ? WHERE id = ?`,
+        `UPDATE users SET gamer_tag = ?, email = ?, role = ?, isActive = ? WHERE id = ?`,
         [user.username, user.email, user.role, user.isActive, user.id]
       );
       return result.affectedRows > 0;
