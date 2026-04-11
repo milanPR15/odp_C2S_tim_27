@@ -1,7 +1,7 @@
 // TODO: Replace with your domain-specific status enum
 export enum EntityStatus {
-  PENDING    = "pending",
-  ACTIVE     = "active",
+  UPCOMING = "upcoming",
+  SCHEDULED = "scheduled",
+  ONGOING  = "ongoing",
   COMPLETED  = "completed",
-  CANCELLED  = "cancelled",
 }
