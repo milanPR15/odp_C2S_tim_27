@@ -15,6 +15,9 @@ import { EntityService } from "./Services/entity/EntityService";
 import { AuthController }   from "./WebAPI/controllers/AuthController";
 import { UserController }   from "./WebAPI/controllers/UserController";
 import { EntityController } from "./WebAPI/controllers/EntityController";
+import { TournamentRepository } from "./Database/repositories/tournaments/TournamentRepository";
+import { TournamentService } from "./Services/tournaments/TournamentService";
+import { TournamentController } from "./WebAPI/controllers/TournamentControler";
 
 export const logger = new ConsoleLoggerService();
 export const db     = new DbManager(logger);
@@ -22,11 +25,13 @@ export const db     = new DbManager(logger);
 // Repositories
 const userRepo   = new UserRepository(db, logger);
 const entityRepo = new EntityRepository(db, logger);
+const tournamentRepo = new TournamentRepository(db, logger);
 
 // Services
 const authService   = new AuthService(userRepo);
 const userService   = new UserService(userRepo);
 const entityService = new EntityService(entityRepo);
+const tournamentService = new TournamentService(tournamentRepo);
 
 // Express
 const app = express();
@@ -36,5 +41,5 @@ app.use(express.json());
 app.use("/api/v1", new AuthController(authService).getRouter());
 app.use("/api/v1", new UserController(userService).getRouter());
 app.use("/api/v1", new EntityController(entityService).getRouter());
-
+app.use("/api/v1", new TournamentController(tournamentService).getRouter());
 export default app;

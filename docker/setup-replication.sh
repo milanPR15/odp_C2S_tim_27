@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS tournaments (
   createdAt         DATETIME DEFAULT CURRENT_TIMESTAMP,
   updatedAt         DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_tournament_id (tournament_id),
-  INDEX idx_name (name),
+  UNIQUE KEY uq_tournament_name (name),
   FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE
 );
 
