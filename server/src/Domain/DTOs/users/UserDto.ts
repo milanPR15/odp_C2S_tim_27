@@ -5,7 +5,7 @@ export class UserDto {
     public id: number       = 0,
     public username: string = "",
     public email: string    = "",
-    public role: UserRole   = UserRole.USER,
+    public role: UserRole   = UserRole.PLAYER,
     public isActive: number = 1,
   ) {}
 }

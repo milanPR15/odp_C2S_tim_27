@@ -70,7 +70,7 @@ export class DbManager {
       const ms = Date.now() - start;
       info.node.status = ms > HEALTH_CHECK_TIMEOUT ? NodeStatus.DEGRADED : NodeStatus.HEALTHY;
     } catch (err) {
-      info.node.status = NodeStatus.OFFLINE;
+      info.node.status = NodeStatus.UNREACHABLE;
       info.node.failedWrites++;
       this.logger.warn("DB", `Node ${info.name} failed health check`);
     } finally {
@@ -91,8 +91,8 @@ export class DbManager {
 
   /** All writes (INSERT/UPDATE/DELETE) → Master only */
   public async getWriteConnection(): Promise<{ conn: PoolConnection; nodeName: string } | null> {
-    if (this.master.node.status === NodeStatus.OFFLINE) {
-      this.logger.error("DB", "Master is OFFLINE — write not possible");
+    if (this.master.node.status === NodeStatus.UNREACHABLE) {
+      this.logger.error("DB", "Master is UNREACHABLE — write not possible");
       return null;
     }
     try {
@@ -100,7 +100,7 @@ export class DbManager {
       this.master.node.successfulWrites++;
       return { conn, nodeName: this.master.name };
     } catch (err) {
-      this.master.node.status = NodeStatus.OFFLINE;
+      this.master.node.status = NodeStatus.UNREACHABLE;
       this.master.node.failedWrites++;
       this.logger.error("DB", "Failed to connect to master", err);
       return null;
@@ -113,22 +113,22 @@ export class DbManager {
     for (let i = 0; i < n; i++) {
       const idx = (this.slaveRrIndex + i) % n;
       const info = this.slaves[idx];
-      if (info.node.status === NodeStatus.OFFLINE) continue;
+      if (info.node.status === NodeStatus.UNREACHABLE) continue;
       try {
         const conn = await info.pool.getConnection();
         this.slaveRrIndex = (idx + 1) % n;
         info.node.successfulWrites++;
         return { conn, nodeName: info.name };
       } catch (err) {
-        info.node.status = NodeStatus.OFFLINE;
+        info.node.status = NodeStatus.UNREACHABLE;
         info.node.failedWrites++;
         this.logger.warn("DB", `Slave ${info.name} unreachable, trying next`);
       }
     }
     // Fallback to master
     this.logger.warn("DB", "All slaves offline — falling back to master for read");
-    if (this.master.node.status === NodeStatus.OFFLINE) {
-      this.logger.error("DB", "Master also offline — read not possible");
+    if (this.master.node.status === NodeStatus.UNREACHABLE) {
+      this.logger.error("DB", "Master also unreachable — read not possible");
       return null;
     }
     try {
@@ -136,7 +136,7 @@ export class DbManager {
       this.master.node.successfulWrites++;
       return { conn, nodeName: this.master.name };
     } catch (err) {
-      this.master.node.status = NodeStatus.OFFLINE;
+      this.master.node.status = NodeStatus.UNREACHABLE;
       this.logger.error("DB", "Failed to connect to master for fallback read", err);
       return null;
     }
