@@ -11,6 +11,7 @@ import UsersPage from "./pages/admin/UsersPage";
 import CreateTournamentPage from "./pages/admin/CreateTournamentPage";
 import CreateGamePage from "./pages/admin/CreateGamePage";
 import GamesCatalogPage from "./pages/games/GamesCatalogPage";
+import TournamentsCatalogPage from "./pages/tournaments/TournamentsCatalogPage";
 
 export default function App() {
   return (
@@ -19,8 +20,9 @@ export default function App() {
       <Route path="/register" element={<RegisterPage />} />
 
       {/* User routes */}
-      <Route path="/dashboard" element={<ProtectedRoute requiredRole="user"><UserDashboard /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<ProtectedRoute requiredRole="player"><UserDashboard /></ProtectedRoute>} />
       <Route path="/games" element={<ProtectedRoute><GamesCatalogPage /></ProtectedRoute>} />
+      <Route path="/tournaments" element={<ProtectedRoute><TournamentsCatalogPage /></ProtectedRoute>} />
 
       {/* Admin routes */}
       <Route path="/admin"       element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
