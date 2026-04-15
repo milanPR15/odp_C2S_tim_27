@@ -8,6 +8,19 @@ import { ITournamentService } from "../../Domain/services/tournaments/ITournamen
 export class TournamentService implements ITournamentService {
     public constructor(private readonly tournamentRepository: ITournamentRepository) {}
 
+    private parseEntryDeadline(rawValue: unknown): Date | null {
+        if (rawValue instanceof Date) {
+            return Number.isNaN(rawValue.getTime()) ? null : rawValue;
+        }
+
+        if (typeof rawValue === "string" || typeof rawValue === "number") {
+            const parsed = new Date(rawValue);
+            return Number.isNaN(parsed.getTime()) ? null : parsed;
+        }
+
+        return null;
+    }
+
     private mapToDto(t: Tournament): TournamentDto {
         return new TournamentDto(
             t.tournament_id,
@@ -33,6 +46,9 @@ export class TournamentService implements ITournamentService {
         const byName = await this.tournamentRepository.findByName(tournament.name);
         if (byName.tournament_id !== 0) return null;
 
+        const entryDeadline = this.parseEntryDeadline(tournament.entry_deadline);
+        if (!entryDeadline) return null;
+
         const created = await this.tournamentRepository.create(
             new Tournament(
                 0,
@@ -40,7 +56,7 @@ export class TournamentService implements ITournamentService {
                 tournament.game_id,
                 tournament.format,
                 tournament.max_teams,
-                tournament.entry_deadline,
+                entryDeadline,
                 tournament.prize_pool,
                 tournament.status,
             )

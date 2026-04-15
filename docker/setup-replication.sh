@@ -81,7 +81,8 @@ CREATE TABLE IF NOT EXISTS games (
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_game_id (game_id),
-  INDEX idx_title (title)
+  INDEX idx_title (title),
+  UNIQUE KEY uq_game_title (title)
 );
 
 CREATE TABLE IF NOT EXISTS team (

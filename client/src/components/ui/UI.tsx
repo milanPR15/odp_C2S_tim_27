@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 
 export function Spinner({ size = 16 }: { size?: number }) {
   return (
@@ -129,5 +130,31 @@ export function PageHeader({ eyebrow, title, action }: { eyebrow: string; title:
       </div>
       {action && <div>{action}</div>}
     </div>
+  );
+}
+
+export function BackButton({ label = "Back", fallbackTo }: { label?: string; fallbackTo?: string }) {
+  const navigate = useNavigate();
+
+  function handleBack() {
+    const canGoBack = typeof window !== "undefined" && window.history.length > 1;
+    if (canGoBack) {
+      navigate(-1);
+      return;
+    }
+    if (fallbackTo) {
+      navigate(fallbackTo);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleBack}
+      className="inline-flex items-center gap-2 h-10 rounded-xl border border-white/15 bg-white/4 px-4 text-xs font-medium uppercase tracking-[0.14em] text-white/70 transition-colors hover:bg-white/8 hover:text-white"
+    >
+      <span aria-hidden>←</span>
+      {label}
+    </button>
   );
 }
