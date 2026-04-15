@@ -43,9 +43,12 @@ export function StatusBadge({ status }: { status: string }) {
     active:    "bg-sky-500/10 text-sky-400 border-sky-500/20",
     completed: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     cancelled: "bg-red-500/10 text-red-400 border-red-500/20",
+    upcoming:  "bg-indigo-500/10 text-indigo-300 border-indigo-500/20",
+    ongoing:   "bg-cyan-500/10 text-cyan-300 border-cyan-500/20",
   };
   const dotStyles: Record<string, string> = {
     pending: "bg-yellow-400", active: "bg-sky-400 animate-pulse", completed: "bg-emerald-400", cancelled: "bg-red-400",
+    upcoming: "bg-indigo-300", ongoing: "bg-cyan-300 animate-pulse",
   };
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border ${styles[status] ?? "bg-white/5 text-white/40 border-white/10"}`}>

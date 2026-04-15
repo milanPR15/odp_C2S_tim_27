@@ -36,11 +36,13 @@ export class TournamentService implements ITournamentService {
         );
     }
 
-    getAll(): Promise<TournamentDto[]> {
-        throw new Error("Method not implemented.");
+    async getAll(): Promise<TournamentDto[]> {
+        const tournaments = await this.tournamentRepository.findAll();
+        return tournaments.map(this.mapToDto);
     }
-    getById(id: number): Promise<TournamentDto | null> {
-        throw new Error("Method not implemented.");
+    async getById(id: number): Promise<TournamentDto | null> {
+        const tournament = await this.tournamentRepository.findById(id);
+        return tournament ? this.mapToDto(tournament) : null;
     }
     async create(tournament: CreateTournamentDto): Promise<TournamentDto | null> {
         const byName = await this.tournamentRepository.findByName(tournament.name);
@@ -65,10 +67,27 @@ export class TournamentService implements ITournamentService {
         if (created.tournament_id === 0) return null;
         return this.mapToDto(created);
     }
-    update(id: number, tournament: UpdateTournamentDto): Promise<TournamentDto | null> {
-        throw new Error("Method not implemented.");
+    async update(id: number, tournament: UpdateTournamentDto): Promise<TournamentDto | null> {
+        const existing = await this.tournamentRepository.findById(id);
+        if (!existing) return null;
+        const success = await this.tournamentRepository.update(new Tournament(
+            id,
+            tournament.name,
+            tournament.game_id,
+            tournament.format,
+            tournament.max_teams,
+            this.parseEntryDeadline(tournament.entry_deadline) || existing.entry_deadline,
+            tournament.prize_pool,
+            tournament.status
+        ));
+        if (!success) return null;
+        const updated = await this.tournamentRepository.findById(id);
+        return updated ? this.mapToDto(updated) : null;
+
     }
-    delete(id: number): Promise<boolean> {
-        throw new Error("Method not implemented.");
+    async delete(id: number): Promise<boolean> {
+        const existing = await this.tournamentRepository.findById(id);
+        if (!existing) return false;
+        return this.tournamentRepository.delete(id);
     }
 }

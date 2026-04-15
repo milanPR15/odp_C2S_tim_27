@@ -21,11 +21,12 @@ export class GameService implements IGamesService {
         );
     }
 
-    getAll(): Promise<GameDto[]> {
+    async getAll(): Promise<GameDto[]> {
         return this.gamesRepository.getAll().then(games => games.map(this.toGameDto));
     }
-    getById(id: number): Promise<GameDto | null> {
-        return this.gamesRepository.getById(id).then(game => game ? this.toGameDto(game) : null);
+    async getById(id: number): Promise<GameDto | null> {
+        const game = await this.gamesRepository.getById(id);
+        return game ? this.toGameDto(game) : null;
     }
     async create(game: CreateGameDto): Promise<GameDto | null> {
         const created = await this.gamesRepository.create(new Game(
@@ -39,25 +40,23 @@ export class GameService implements IGamesService {
         if (!created || created.game_id === 0) return null;
         return this.toGameDto(created);
     }
-    update(id: number, game: GameDto): Promise<GameDto | null> {
-        return this.gamesRepository.getById(id).then(existing => {
-            if (!existing) return null;
-            return this.gamesRepository.update(new Game(
-                id,
-                game.title,
-                game.genre,
-                game.max_players,
-                game.logo
-            )).then(updated => {
-                if (!updated) return null;
-                return this.gamesRepository.getById(id).then(updatedGame => updatedGame ? this.toGameDto(updatedGame) : null);
-            });
-        });
+    async update(id: number, game: GameDto): Promise<GameDto | null> {
+        const existing = await this.gamesRepository.getById(id);
+        if (!existing) return null;
+        const success = await this.gamesRepository.update(new Game(
+            id,
+            game.title,
+            game.genre,
+            game.max_players,
+            game.logo
+        ));
+        if (!success) return null;
+        const updated = await this.gamesRepository.getById(id);
+        return updated ? this.toGameDto(updated) : null;
     }
-    delete(id: number): Promise<boolean> {
-        return this.gamesRepository.getById(id).then(existing => {
-            if (!existing) return false;
-            return this.gamesRepository.delete(id);
-        });
+    async delete(id: number): Promise<boolean> {
+        const existing = await this.gamesRepository.getById(id);
+        if (!existing) return false;
+        return this.gamesRepository.delete(id);
     }
 }
