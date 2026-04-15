@@ -29,8 +29,20 @@ export class TournamentRepository implements ITournamentRepository {
         }
         finally { res.conn.release(); }
     }
-    findById(id: number): Promise<Tournament | null> {
-        throw new Error('Method not implemented.');
+    async findById(id: number): Promise<Tournament | null> {
+        const res = await this.db.getReadConnection();
+        if (!res) return null;
+        try {
+            const [rows] = await res.conn.execute<RowDataPacket[]>(
+                `SELECT * FROM tournaments WHERE tournament_id = ?`,
+                [id]
+            );
+            return rows.length > 0 ? this.map(rows[0]) : null;
+        } catch (err) {
+            this.logger.error('Trounament repository', "findById failed", err);
+            return null;
+        }
+        finally { res.conn.release(); }
     }
     async findByName(name: string): Promise<Tournament> {
         const res = await this.db.getReadConnection();
@@ -47,14 +59,50 @@ export class TournamentRepository implements ITournamentRepository {
         }
         finally { res.conn.release(); }
     }
-    findAll(): Promise<Tournament[]> {
-        throw new Error('Method not implemented.');
+    async findAll(): Promise<Tournament[]> {
+        const res = await this.db.getReadConnection();
+        if (!res) return [];
+        try {
+            const [rows] = await res.conn.execute<RowDataPacket[]>(
+                `SELECT * FROM tournaments`
+            );
+            return rows.map((r) => this.map(r));
+        } catch (err) {
+            this.logger.error('Trounament repository', "findAll failed", err);
+            return [];
+        }
+        finally { res.conn.release(); }
     }
-    update(tournament?: Tournament): Promise<boolean> {
-        throw new Error('Method not implemented.');
+    async update(tournament?: Tournament): Promise<boolean> {
+        if (!tournament) return false;
+        const res = await this.db.getWriteConnection();
+        if (!res) return false;
+        try {
+            const [result] = await res.conn.execute<ResultSetHeader>(
+                `UPDATE tournaments SET name = ?, game_id = ?, format = ?, max_teams = ?, entry_deadline = ?, prize_pool = ?, status = ? WHERE tournament_id = ?`,
+                [tournament.name, tournament.game_id, tournament.format, tournament.max_teams, tournament.entry_deadline, tournament.prize_pool, tournament.status, tournament.tournament_id]
+            );
+            return result.affectedRows > 0;
+        } catch (err) {
+            this.logger.error('Trounament repository', "update failed", err);
+            return false;
+        }
+        finally { res.conn.release(); }
     }
-    delete(id: number): Promise<boolean> {
-        throw new Error('Method not implemented.');
+    async delete(id: number): Promise<boolean> {
+        const res = await this.db.getWriteConnection();
+        if (!res) return false;
+        try {
+            const [result] = await res.conn.execute<ResultSetHeader>(
+                `DELETE FROM tournaments WHERE tournament_id = ?`,
+                [id]
+            );
+            return result.affectedRows > 0;
+        } catch (err) {
+            this.logger.error('Trounament repository', "delete failed", err);
+            return false;
+        }
+        finally { res.conn.release(); }
     }
 }
   
