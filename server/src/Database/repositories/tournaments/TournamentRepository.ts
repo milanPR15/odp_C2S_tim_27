@@ -11,7 +11,7 @@ export class TournamentRepository implements ITournamentRepository {
     ) {}
 
     private map(r: RowDataPacket): Tournament {
-        return new Tournament(r.tournament_id, r.name, r.game_id, r.format, r.max_teams, r.entry_deadline, r.prize_pool, r.status, r.createdAt, r.updatedAt);
+        return new Tournament(r.tournament_id, r.name, r.game_id, r.format, r.max_teams, r.entry_deadline, r.prize_pool, r.status, r.created_at, r.updated_at);
     }
     async create(tournament: Tournament): Promise<Tournament> {
         const res = await this.db.getWriteConnection();
