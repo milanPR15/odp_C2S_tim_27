@@ -3,19 +3,15 @@ import { Link } from "react-router-dom";
 import { gamesApi } from "../../api_services/games/GamesAPIService";
 import type { GameDto } from "../../models/game/GameTypes";
 import { Empty, ErrorBox, PageHeader, Spinner, StatCard } from "../../components/ui/UI";
+import { GameCard } from "../../components/game-display/GameCard";
 import { useAuth } from "../../hooks/auth/useAuthHook";
-
-function formatDate(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "-";
-  return parsed.toLocaleDateString();
-}
 
 export default function GamesCatalogPage() {
   const { user } = useAuth();
   const [games, setGames] = useState<GameDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deletingIds, setDeletingIds] = useState<number[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -95,28 +91,26 @@ export default function GamesCatalogPage() {
           <Empty message="No games found in the catalog." />
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
           {sortedGames.map((game) => (
-            <article key={game.game_id} className="rounded-2xl border border-white/10 bg-linear-to-b from-white/6 to-white/2 p-4">
-              <div className="h-36 w-full rounded-xl border border-white/10 bg-black/25 overflow-hidden flex items-center justify-center">
-                <img
-                  src={game.logo}
-                  alt={`${game.title} logo`}
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                />
-              </div>
-
-              <div className="mt-4">
-                <p className="text-white font-medium tracking-tight">{game.title}</p>
-                <p className="text-xs text-white/35 mt-1 uppercase tracking-widest">{game.genre}</p>
-              </div>
-
-              <div className="mt-4 flex items-center justify-between text-xs text-white/45 border-t border-white/8 pt-3">
-                <span>Max players: {game.max_players}</span>
-                <span>Created: {formatDate(game.createdAt)}</span>
-              </div>
-            </article>
+            <GameCard
+              key={game.game_id}
+              game={game}
+              isDeleting={deletingIds.includes(game.game_id)}
+              onDelete={async (deletedGame) => {
+                const confirmed = window.confirm(`Delete game '${deletedGame.title}'?`);
+                if (!confirmed) return;
+                setError("");
+                setDeletingIds((s) => [...s, deletedGame.game_id]);
+                const res = await gamesApi.delete(deletedGame.game_id);
+                setDeletingIds((s) => s.filter((id) => id !== deletedGame.game_id));
+                if (!res.success) {
+                  setError(res.message || "Failed to delete game.");
+                  return;
+                }
+                setGames((prev) => prev.filter((g) => g.game_id !== deletedGame.game_id));
+              }}
+            />
           ))}
         </div>
       )}

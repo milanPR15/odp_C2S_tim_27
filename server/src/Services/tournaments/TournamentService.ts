@@ -44,6 +44,10 @@ export class TournamentService implements ITournamentService {
         const tournament = await this.tournamentRepository.findById(id);
         return tournament ? this.mapToDto(tournament) : null;
     }
+    async getByGameId(gameId: number): Promise<TournamentDto[]> {
+        const tournaments = await this.tournamentRepository.findByGameId(gameId);
+        return tournaments.map(this.mapToDto);
+    }
     async create(tournament: CreateTournamentDto): Promise<TournamentDto | null> {
         const byName = await this.tournamentRepository.findByName(tournament.name);
         if (byName.tournament_id !== 0) return null;

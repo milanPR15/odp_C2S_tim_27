@@ -10,6 +10,7 @@ export class TournamentController {
     public constructor(private readonly tournamentService: ITournamentService)
     {
         this.router.get("/tournaments", authenticate, this.getAll.bind(this));
+        this.router.get("/tournaments/game/:gameId", authenticate, this.getByGameId.bind(this));
         this.router.get("/tournaments/:id", authenticate, this.getById.bind(this));
         this.router.post("/tournaments", authenticate, authorize(UserRole.ADMIN), this.create.bind(this));
         this.router.put("/tournaments/:id", authenticate, authorize(UserRole.ADMIN), this.update.bind(this));
@@ -18,6 +19,16 @@ export class TournamentController {
 
     private async getAll(req: Request, res: Response): Promise<void> {
         const tournaments = await this.tournamentService.getAll();
+        res.status(200).json({ success: true, data: tournaments });
+    }
+
+    private async getByGameId(req: Request, res: Response): Promise<void> {
+        const gameId = parseInt(req.params.gameId as string, 10);
+        if (isNaN(gameId)) {
+            res.status(400).json({ success: false, message: "Invalid game ID" });
+            return;
+        }
+        const tournaments = await this.tournamentService.getByGameId(gameId);
         res.status(200).json({ success: true, data: tournaments });
     }
 

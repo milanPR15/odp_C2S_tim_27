@@ -11,6 +11,7 @@ import UsersPage from "./pages/admin/UsersPage";
 import CreateTournamentPage from "./pages/admin/CreateTournamentPage";
 import CreateGamePage from "./pages/admin/CreateGamePage";
 import GamesCatalogPage from "./pages/games/GamesCatalogPage";
+import GameDetailPage from "./pages/games/GameDetailPage";
 import TournamentsCatalogPage from "./pages/tournaments/TournamentsCatalogPage";
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
       {/* User routes */}
       <Route path="/dashboard" element={<ProtectedRoute requiredRole="player"><UserDashboard /></ProtectedRoute>} />
       <Route path="/games" element={<ProtectedRoute><GamesCatalogPage /></ProtectedRoute>} />
+      <Route path="/games/:id" element={<ProtectedRoute><GameDetailPage /></ProtectedRoute>} />
       <Route path="/tournaments" element={<ProtectedRoute><TournamentsCatalogPage /></ProtectedRoute>} />
 
       {/* Admin routes */}
