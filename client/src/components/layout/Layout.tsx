@@ -10,6 +10,7 @@ const userNav = [
 const adminNav = [
   { to: "/admin",       label: "Dashboard", icon: "⬡" },
   { to: "/admin/users", label: "Users",     icon: "◎" },
+  { to: "/admin/audit-logs", label: "Audit Logs", icon: "▤" },
   { to: "/games", label: "Games Catalog", icon: "✦" },
   { to: "/tournaments", label: "Tournaments", icon: "◌" },
 ];

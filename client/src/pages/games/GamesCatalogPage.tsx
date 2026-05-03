@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { gamesApi } from "../../api_services/games/GamesAPIService";
 import type { GameDto } from "../../models/game/GameTypes";
 import { Empty, ErrorBox, PageHeader, Spinner, StatCard } from "../../components/ui/UI";
-import { GameCard } from "../../components/game-display/GameCard";
+import { GameCard } from "../../components/game_display/GameCard";
 import { useAuth } from "../../hooks/auth/useAuthHook";
 
 export default function GamesCatalogPage() {

@@ -8,6 +8,7 @@ import NotFoundPage from "./pages/not_found/NotFoundPage";
 import UserDashboard from "./pages/user/UserDashboard";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UsersPage from "./pages/admin/UsersPage";
+import AuditLogsPage from "./pages/admin/AuditLogsPage";
 import CreateTournamentPage from "./pages/admin/CreateTournamentPage";
 import CreateGamePage from "./pages/admin/CreateGamePage";
 import GamesCatalogPage from "./pages/games/GamesCatalogPage";
@@ -29,6 +30,7 @@ export default function App() {
       {/* Admin routes */}
       <Route path="/admin"       element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
       <Route path="/admin/users" element={<ProtectedRoute requiredRole="admin"><UsersPage /></ProtectedRoute>} />
+      <Route path="/admin/audit-logs" element={<ProtectedRoute requiredRole="admin"><AuditLogsPage /></ProtectedRoute>} />
       <Route path="/admin/tournaments/create" element={<ProtectedRoute requiredRole="admin"><CreateTournamentPage /></ProtectedRoute>} />
       <Route path="/admin/games/create" element={<ProtectedRoute requiredRole="admin"><CreateGamePage /></ProtectedRoute>} />
 

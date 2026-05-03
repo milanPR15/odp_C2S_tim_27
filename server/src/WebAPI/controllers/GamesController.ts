@@ -17,44 +17,63 @@ export class GameController {
     }
 
     private async getAll(req: Request, res: Response): Promise<void> {
-        const games = await this.gameService.getAll();
-        res.status(200).json({ success: true, data: games });
+        const result = await this.gameService.getAll();
+        if (!result.success) {
+            res.status(result.statusCode || 500).json({ success: false, message: result.error || "Games not found" });
+            return;
+        }
+        res.status(200).json({ success: true, data: result.data });
     }
 
     private async getById(req: Request, res: Response): Promise<void> {
         const id = parseInt(req.params.id as string, 10);
-        const game = await this.gameService.getById(id);
-        if (!game) {
-            res.status(404).json({ success: false, message: "Game not found" });
+        if (isNaN(id)) {
+            res.status(400).json({ success: false, message: "Invalid game ID syntax" });
             return;
         }
-        res.status(200).json({ success: true, data: game });
+        const result = await this.gameService.getById(id);
+        if (!result.success) {
+            res.status(result.statusCode || 404).json({ success: false, message: result.error || "Game not found" });
+            return;
+        }
+        res.status(200).json({ success: true, data: result.data });
     }
 
     private async create(req: Request, res: Response): Promise<void> {
-        const game = await this.gameService.create(req.body);
-        if (!game) {
-            res.status(400).json({ success: false, message: "Failed to create game" });
+        const userId = req.user?.id || 0;
+        const result = await this.gameService.create(req.body, userId);
+        if (!result.success) {
+            res.status(result.statusCode || 400).json({ success: false, message: result.error || "Failed to create game" });
             return;
         }
-        res.status(201).json({ success: true, data: game });
+        res.status(201).json({ success: true, data: result.data });
     }
 
     private async update(req: Request, res: Response): Promise<void> {
         const id = parseInt(req.params.id as string, 10);
-        const game = await this.gameService.update(id, req.body);
-        if (!game) {
-            res.status(404).json({ success: false, message: "Game not found" });
+        if (isNaN(id)) {
+            res.status(400).json({ success: false, message: "Invalid game ID syntax" });
             return;
         }
-        res.status(200).json({ success: true, data: game });
+        const userId = req.user?.id || 0;
+        const result = await this.gameService.update(id, req.body, userId);
+        if (!result.success) {
+            res.status(result.statusCode || 404).json({ success: false, message: result.error || "Game not found" });
+            return;
+        }
+        res.status(200).json({ success: true, data: result.data });
     }
 
     private async delete(req: Request, res: Response): Promise<void> {
         const id = parseInt(req.params.id as string, 10);
-        const deleted = await this.gameService.delete(id);
-        if (!deleted) {
-            res.status(404).json({ success: false, message: "Game not found" });
+        if (isNaN(id)) {
+            res.status(400).json({ success: false, message: "Invalid game ID syntax" });
+            return;
+        }
+        const userId = req.user?.id || 0;
+        const result = await this.gameService.delete(id, userId);
+        if (!result.success) {
+            res.status(result.statusCode || 404).json({ success: false, message: result.error || "Game not found" });
             return;
         }
         res.status(200).json({ success: true, message: "Game deleted successfully" });

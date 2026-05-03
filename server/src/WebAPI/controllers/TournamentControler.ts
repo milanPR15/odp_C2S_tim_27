@@ -18,57 +18,80 @@ export class TournamentController {
     }
 
     private async getAll(req: Request, res: Response): Promise<void> {
-        const tournaments = await this.tournamentService.getAll();
-        res.status(200).json({ success: true, data: tournaments });
+        const result = await this.tournamentService.getAll();
+        if (!result.success) {
+            res.status(result.statusCode).json({ success: false, message: result.error });
+            return;
+        }
+        res.status(200).json({ success: true, data: result.data });
     }
 
     private async getByGameId(req: Request, res: Response): Promise<void> {
         const gameId = parseInt(req.params.gameId as string, 10);
         if (isNaN(gameId)) {
-            res.status(400).json({ success: false, message: "Invalid game ID" });
+            res.status(400).json({ success: false, message: "Invalid game ID syntax" });
             return;
         }
-        const tournaments = await this.tournamentService.getByGameId(gameId);
-        res.status(200).json({ success: true, data: tournaments });
+        const result = await this.tournamentService.getByGameId(gameId);
+        if (!result.success) {
+            res.status(result.statusCode).json({ success: false, message: result.error });
+            return;
+        }
+        res.status(200).json({ success: true, data: result.data });
     }
 
     private async getById(req: Request, res: Response): Promise<void> {
         const id = parseInt(req.params.id as string, 10);
-        const tournament = await this.tournamentService.getById(id);
-        if (!tournament) {
-            res.status(404).json({ success: false, message: "Tournament not found" });
+        if (isNaN(id)) {
+            res.status(400).json({ success: false, message: "Invalid tournament ID syntax" });
             return;
         }
-        res.status(200).json({ success: true, data: tournament });
+        const result = await this.tournamentService.getById(id);
+        if (!result.success) {
+            res.status(result.statusCode).json({ success: false, message: result.error });
+            return;
+        }
+        res.status(200).json({ success: true, data: result.data });
     }
 
     private async create(req: Request, res: Response): Promise<void> {
-        const tournament = await this.tournamentService.create(req.body);
-        if (!tournament) {
-            res.status(400).json({ success: false, message: "Failed to create tournament" });
+        const userId = req.user?.id || 0;
+        const result = await this.tournamentService.create(req.body, userId);
+        if (!result.success) {
+            res.status(result.statusCode).json({ success: false, message: result.error });
             return;
         }
-        res.status(201).json({ success: true, data: tournament });
+        res.status(201).json({ success: true, data: result.data });
     }
 
     private async update(req: Request, res: Response): Promise<void> {
         const id = parseInt(req.params.id as string, 10);
-        const tournament = await this.tournamentService.update(id, req.body);
-        if (!tournament) {
-            res.status(400).json({ success: false, message: "Failed to update tournament" });
+        if (isNaN(id)) {
+            res.status(400).json({ success: false, message: "Invalid tournament ID syntax" });
             return;
         }
-        res.status(200).json({ success: true, data: tournament });
+        const userId = req.user?.id || 0;
+        const result = await this.tournamentService.update(id, req.body, userId);
+        if (!result.success) {
+            res.status(result.statusCode).json({ success: false, message: result.error });
+            return;
+        }
+        res.status(200).json({ success: true, data: result.data });
     }
 
     private async delete(req: Request, res: Response): Promise<void> {
         const id = parseInt(req.params.id as string, 10);
-        const success = await this.tournamentService.delete(id);
-        if (!success) {
-            res.status(400).json({ success: false, message: "Failed to delete tournament" });
+        if (isNaN(id)) {
+            res.status(400).json({ success: false, message: "Invalid tournament ID syntax" });
             return;
         }
-        res.status(200).json({ success: true, message: "Tournament deleted" });
+        const userId = req.user?.id || 0;
+        const result = await this.tournamentService.delete(id, userId);
+        if (!result.success) {
+            res.status(result.statusCode).json({ success: false, message: result.error });
+            return;
+        }
+        res.status(200).json({ success: true, message: "Tournament deleted successfully" });
     }
 
     public getRouter(): Router { return this.router; }
