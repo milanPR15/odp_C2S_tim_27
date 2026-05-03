@@ -24,6 +24,10 @@ export const tournamentApi: ITournamentAPIService = {
         return axios.get<ApiResponse<TournamentDto>>(`${BASE}/${id}`, { headers: authHeader() })
             .then(r => r.data).catch(e => err(e, "Failed to load tournament"));
     },
+    getByGameId: function (gameId: number): Promise<ApiResponse<TournamentDto[]>> {
+        return axios.get<ApiResponse<TournamentDto[]>>(`${BASE}/game/${gameId}`, { headers: authHeader() })
+            .then(r => r.data).catch(e => err(e, "Failed to load tournaments for game"));
+    },
     create: function (tournament: CreateTournamentDto): Promise<ApiResponse<TournamentDto>> {
         return axios.post<ApiResponse<TournamentDto>>(BASE, tournament, { headers: authHeader() })
             .then(r => r.data).catch(e => err(e, "Failed to create tournament"));

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { gamesApi } from "../../api_services/games/GamesAPIService";
 import { tournamentApi } from "../../api_services/tournament/TournamentAPIService";
+import { TournamentFilterDropdown } from "../../components/tournament_display/TournamentFilterDropdown";
 import {
   Empty,
   ErrorBox,
@@ -126,9 +127,6 @@ export default function TournamentsCatalogPage() {
     [filteredTournaments],
   );
 
-  const labelClass = "text-[11px] uppercase tracking-[0.18em] text-white/45 font-medium";
-  const inputClass = "h-11 rounded-xl border border-white/12 bg-black/30 px-3 text-sm text-white outline-none transition-all focus:border-cyan-300/65 focus:bg-black/40 focus:shadow-[0_0_0_3px_rgba(103,232,249,0.12)]";
-
   return (
     <div>
       <PageHeader
@@ -150,43 +148,31 @@ export default function TournamentsCatalogPage() {
         <StatCard label="Prize Pool" value={formatMoney(totalPrizePool)} sub="Sum of visible tournaments" />
       </div>
 
-      <section className="rounded-2xl border border-white/8 bg-white/3 p-4 mb-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <label className="flex flex-col gap-2">
-            <span className={labelClass}>Filter by game</span>
-            <select value={gameFilter} onChange={(e) => setGameFilter(e.target.value as GameFilter)} className={inputClass}>
-              <option value="all" className="bg-[#0d1117]">All games</option>
-              {sortedGames.map((game) => (
-                <option key={game.game_id} value={String(game.game_id)} className="bg-[#0d1117]">
-                  {game.title}
-                </option>
-              ))}
-            </select>
-          </label>
+      <section className="rounded-2xl border border-white/10 bg-linear-to-b from-white/10 to-white/5 p-5 shadow-lg shadow-black/20 backdrop-blur-md mb-8">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <TournamentFilterDropdown<GameFilter>
+            label="Filter by Game"
+            value={gameFilter}
+            onChange={setGameFilter}
+            allLabel="All Games"
+            options={sortedGames.map((g) => ({ value: String(g.game_id) as GameFilter, label: g.title }))}
+          />
 
-          <label className="flex flex-col gap-2">
-            <span className={labelClass}>Filter by status</span>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as StatusFilter)} className={inputClass}>
-              <option value="all" className="bg-[#0d1117]">All statuses</option>
-              {Object.entries(statusLabels).map(([value, label]) => (
-                <option key={value} value={value} className="bg-[#0d1117]">
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <TournamentFilterDropdown<StatusFilter>
+            label="Filter by Status"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            allLabel="All Statuses"
+            options={Object.entries(statusLabels).map(([val, label]) => ({ value: val as StatusFilter, label }))}
+          />
 
-          <label className="flex flex-col gap-2">
-            <span className={labelClass}>Filter by format</span>
-            <select value={formatFilter} onChange={(e) => setFormatFilter(e.target.value as FormatFilter)} className={inputClass}>
-              <option value="all" className="bg-[#0d1117]">All formats</option>
-              {Object.entries(formatLabels).map(([value, label]) => (
-                <option key={value} value={value} className="bg-[#0d1117]">
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <TournamentFilterDropdown<FormatFilter>
+            label="Filter by Format"
+            value={formatFilter}
+            onChange={setFormatFilter}
+            allLabel="All Formats"
+            options={Object.entries(formatLabels).map(([val, label]) => ({ value: val as FormatFilter, label }))}
+          />
         </div>
       </section>
 

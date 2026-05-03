@@ -44,6 +44,21 @@ export class TournamentRepository implements ITournamentRepository {
         }
         finally { res.conn.release(); }
     }
+    async findByGameId(gameId: number): Promise<Tournament[]> {
+        const res = await this.db.getReadConnection();
+        if (!res) return [];
+        try {
+            const [rows] = await res.conn.execute<RowDataPacket[]>(
+                `SELECT * FROM tournaments WHERE game_id = ?`,
+                [gameId]
+            );
+            return rows.map((r) => this.map(r));
+        } catch (err) {
+            this.logger.error('Tournament repository', "findByGameId failed", err);
+            return [];
+        }
+        finally { res.conn.release(); }
+    }
     async findByName(name: string): Promise<Tournament> {
         const res = await this.db.getReadConnection();
         if (!res) return new Tournament();
