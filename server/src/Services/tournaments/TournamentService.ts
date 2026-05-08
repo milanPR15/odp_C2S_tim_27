@@ -4,9 +4,14 @@ import { UpdateTournamentDto } from "../../Domain/DTOs/tournaments/UpdateTournam
 import { Tournament } from "../../Domain/models/Tournament";
 import { ITournamentRepository } from "../../Domain/repositories/tournaments/ITournamentRepository";
 import { ITournamentService } from "../../Domain/services/tournaments/ITournamentService";
+import { IAuditLogService } from "../../Domain/services/auditLogs/IAuditLogService";
+import { Result } from "../../Domain/types/Result";
 
 export class TournamentService implements ITournamentService {
-    public constructor(private readonly tournamentRepository: ITournamentRepository) {}
+    public constructor(
+        private readonly tournamentRepository: ITournamentRepository,
+        private readonly auditLogService: IAuditLogService
+    ) {}
 
     private parseEntryDeadline(rawValue: unknown): Date | null {
         if (rawValue instanceof Date) {
@@ -36,24 +41,34 @@ export class TournamentService implements ITournamentService {
         );
     }
 
-    async getAll(): Promise<TournamentDto[]> {
+    async getAll(): Promise<Result<TournamentDto[]>> {
         const tournaments = await this.tournamentRepository.findAll();
-        return tournaments.map(this.mapToDto);
+        return { success: true, data: tournaments.map(this.mapToDto) };
     }
-    async getById(id: number): Promise<TournamentDto | null> {
+
+    async getById(id: number): Promise<Result<TournamentDto>> {
         const tournament = await this.tournamentRepository.findById(id);
-        return tournament ? this.mapToDto(tournament) : null;
+        if (!tournament) {
+            return { success: false, statusCode: 404, error: `Tournament with ID ${id} not found.` };
+        }
+        return { success: true, data: this.mapToDto(tournament) };
     }
-    async getByGameId(gameId: number): Promise<TournamentDto[]> {
+
+    async getByGameId(gameId: number): Promise<Result<TournamentDto[]>> {
         const tournaments = await this.tournamentRepository.findByGameId(gameId);
-        return tournaments.map(this.mapToDto);
+        return { success: true, data: tournaments.map(this.mapToDto) };
     }
-    async create(tournament: CreateTournamentDto): Promise<TournamentDto | null> {
+
+    async create(tournament: CreateTournamentDto, userId: number = 0): Promise<Result<TournamentDto>> {
         const byName = await this.tournamentRepository.findByName(tournament.name);
-        if (byName.tournament_id !== 0) return null;
+        if (byName.tournament_id !== 0) {
+            return { success: false, statusCode: 409, error: `Tournament with name '${tournament.name}' already exists.` };
+        }
 
         const entryDeadline = this.parseEntryDeadline(tournament.entry_deadline);
-        if (!entryDeadline) return null;
+        if (!entryDeadline) {
+            return { success: false, statusCode: 400, error: "Invalid entry deadline format string provided." };
+        }
 
         const created = await this.tournamentRepository.create(
             new Tournament(
@@ -68,30 +83,74 @@ export class TournamentService implements ITournamentService {
             )
         );
 
-        if (created.tournament_id === 0) return null;
-        return this.mapToDto(created);
+        if (created.tournament_id === 0) {
+            return { success: false, statusCode: 500, error: "Failed to insert the tournament into the database." };
+        }
+        
+        await this.auditLogService.log(
+            userId,
+            "CREATE",
+            "Tournament",
+            created.tournament_id,
+            JSON.stringify({ name: tournament.name, game_id: tournament.game_id })
+        );
+
+        return { success: true, data: this.mapToDto(created) };
     }
-    async update(id: number, tournament: UpdateTournamentDto): Promise<TournamentDto | null> {
+
+    async update(id: number, tournament: UpdateTournamentDto, userId: number = 0): Promise<Result<TournamentDto>> {
         const existing = await this.tournamentRepository.findById(id);
-        if (!existing) return null;
+        if (!existing) {
+            return { success: false, statusCode: 404, error: `Tournament with ID ${id} not found.` };
+        }
+
         const success = await this.tournamentRepository.update(new Tournament(
             id,
-            tournament.name,
-            tournament.game_id,
-            tournament.format,
-            tournament.max_teams,
+            tournament.name ?? existing.name,
+            tournament.game_id ?? existing.game_id,
+            tournament.format ?? existing.format,
+            tournament.max_teams ?? existing.max_teams,
             this.parseEntryDeadline(tournament.entry_deadline) || existing.entry_deadline,
-            tournament.prize_pool,
-            tournament.status
+            tournament.prize_pool ?? existing.prize_pool,
+            tournament.status ?? existing.status
         ));
-        if (!success) return null;
-        const updated = await this.tournamentRepository.findById(id);
-        return updated ? this.mapToDto(updated) : null;
 
+        if (!success) {
+            return { success: false, statusCode: 500, error: "Failed to update the tournament in the database." };
+        }
+
+        await this.auditLogService.log(
+            userId,
+            "UPDATE",
+            "Tournament",
+            id,
+            JSON.stringify({ name: tournament.name, game_id: tournament.game_id })
+        );
+
+        const updated = await this.tournamentRepository.findById(id);
+        if (!updated) {
+            return { success: false, statusCode: 500, error: "Tournament was updated but failed to retrieve the updated data." };
+        }
+        return { success: true, data: this.mapToDto(updated) };
     }
-    async delete(id: number): Promise<boolean> {
+
+    async delete(id: number, userId: number = 0): Promise<Result<void>> {
         const existing = await this.tournamentRepository.findById(id);
-        if (!existing) return false;
-        return this.tournamentRepository.delete(id);
+        if (!existing) {
+            return { success: false, statusCode: 404, error: `Tournament with ID ${id} not found.` };
+        }
+        const success = await this.tournamentRepository.delete(id);
+        if (!success) {
+            return { success: false, statusCode: 500, error: "Failed to delete the tournament from the database." };
+        }
+        
+        await this.auditLogService.log(
+            userId,
+            "DELETE",
+            "Tournament",
+            id
+        );
+
+        return { success: true, data: undefined };
     }
 }
