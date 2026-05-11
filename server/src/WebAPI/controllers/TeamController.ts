@@ -12,25 +12,29 @@ export class TeamController {
 
   private setupRoutes(): void {
     // Javne i korisničke rute
-    this.router.get("/", authenticate, this.getMyTeams.bind(this));
-    this.router.post("/", authenticate, this.createTeam.bind(this));
-    this.router.get("/:id", this.getTeamById.bind(this));
+    this.router.get("/teams", authenticate, this.getMyTeams.bind(this));
+    this.router.post("/teams", authenticate, this.createTeam.bind(this));
+    this.router.get("/teams/:id", this.getTeamById.bind(this));
 
     // Captain / članovi rute (za sada nedovršene)
-    this.router.put("/:id", authenticate, this.updateTeam.bind(this));
-    this.router.delete("/:id", authenticate, this.deleteTeam.bind(this));
+    this.router.put("/teams/:id", authenticate, this.updateTeam.bind(this));
+    this.router.delete("/teams/:id", authenticate, this.deleteTeam.bind(this));
 
-    this.router.post("/:id/invite", authenticate, this.sendInvite.bind(this));
-    this.router.post("/:id/invite/respond", authenticate, this.respondToInvite.bind(this));
+    this.router.post("/teams/:id/invite", authenticate, this.sendInvite.bind(this));
+    this.router.post("/teams/:id/invite/respond", authenticate, this.respondToInvite.bind(this));
 
-    this.router.patch("/:id/members/:userId/role", authenticate, this.transferCaptain.bind(this));
-    this.router.delete("/:id/members/:userId", authenticate, this.removeMember.bind(this));
+    this.router.patch("/teams/:id/members/:userId/role", authenticate, this.transferCaptain.bind(this));
+    this.router.delete("/teams/:id/members/:userId", authenticate, this.removeMember.bind(this));
   }
 
   private async getMyTeams(req: Request, res: Response): Promise<void> {
     const userId = req.user!.id;
-    const teams = await this.teamService.getMyTeams(userId);
-    res.status(200).json({ success: true, data: teams });
+    const result = await this.teamService.getMyTeams(userId);
+    if (!result.success) {
+      res.status(result.statusCode || 500).json({ success: false, message: result.error });
+      return;
+    }
+    res.status(200).json({ success: true, data: result.data });
   }
 
   private async createTeam(req: Request, res: Response): Promise<void> {
@@ -42,12 +46,13 @@ export class TeamController {
       req.body.description || null
     );
 
-    try {
-      const team = await this.teamService.createTeam(userId, dto);
-      res.status(201).json({ success: true, data: team });
-    } catch (err: any) {
-      res.status(400).json({ success: false, message: err.message || "Failed to create team" });
+    const result = await this.teamService.createTeam(userId, dto);
+    if (!result.success) {
+      res.status(result.statusCode || 400).json({ success: false, message: result.error });
+      return;
     }
+
+    res.status(201).json({ success: true, data: result.data });
   }
 
   private async getTeamById(req: Request, res: Response): Promise<void> {
@@ -57,22 +62,51 @@ export class TeamController {
       return;
     }
 
-    const team = await this.teamService.getTeamById(id);
-    if (!team) {
-      res.status(404).json({ success: false, message: "Team not found" });
+    const result = await this.teamService.getTeamById(id);
+    if (!result.success) {
+      res.status(result.statusCode || 404).json({ success: false, message: result.error });
       return;
     }
 
-    res.status(200).json({ success: true, data: team });
+    res.status(200).json({ success: true, data: result.data });
   }
 
   // Ostale metode za sada ostavljamo kao "Not implemented"
   private async updateTeam(req: Request, res: Response): Promise<void> {
-    res.status(501).json({ success: false, message: "Not implemented yet" });
+    const userId = req.user!.id;
+    const id = parseInt(req.params.id as string, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ success: false, message: "Invalid team ID" });
+      return;
+    }
+
+    const dto: Partial<CreateTeamDto> = req.body;
+    const result = await this.teamService.updateTeam(id, userId, dto);
+    
+    if (!result.success) {
+      res.status(result.statusCode || 400).json({ success: false, message: result.error });
+      return;
+    }
+
+    res.status(200).json({ success: true, data: result.data });
   }
 
   private async deleteTeam(req: Request, res: Response): Promise<void> {
-    res.status(501).json({ success: false, message: "Not implemented yet" });
+    const userId = req.user!.id;
+    const id = parseInt(req.params.id as string, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ success: false, message: "Invalid team ID" });
+      return;
+    }
+
+    const result = await this.teamService.deleteTeam(id, userId);
+    
+    if (!result.success) {
+      res.status(result.statusCode || 400).json({ success: false, message: result.error });
+      return;
+    }
+
+    res.status(200).json({ success: true, message: "Team deleted successfully" });
   }
 
   private async sendInvite(req: Request, res: Response): Promise<void> {
@@ -84,11 +118,43 @@ export class TeamController {
   }
 
   private async transferCaptain(req: Request, res: Response): Promise<void> {
-    res.status(501).json({ success: false, message: "Not implemented yet" });
+    const requesterId = req.user!.id;
+    const teamId = parseInt(req.params.id as string, 10);
+    const newCaptainId = parseInt(req.params.userId as string, 10);
+
+    if (isNaN(teamId) || isNaN(newCaptainId)) {
+      res.status(400).json({ success: false, message: "Invalid IDs provided" });
+      return;
+    }
+
+    const result = await this.teamService.transferCaptain(teamId, requesterId, newCaptainId);
+    
+    if (!result.success) {
+      res.status(result.statusCode || 400).json({ success: false, message: result.error });
+      return;
+    }
+
+    res.status(200).json({ success: true, message: "Captain transferred successfully" });
   }
 
   private async removeMember(req: Request, res: Response): Promise<void> {
-    res.status(501).json({ success: false, message: "Not implemented yet" });
+    const requesterId = req.user!.id;
+    const teamId = parseInt(req.params.id as string, 10);
+    const targetUserId = parseInt(req.params.userId as string, 10);
+
+    if (isNaN(teamId) || isNaN(targetUserId)) {
+      res.status(400).json({ success: false, message: "Invalid IDs provided" });
+      return;
+    }
+
+    const result = await this.teamService.removeMember(teamId, requesterId, targetUserId);
+    
+    if (!result.success) {
+      res.status(result.statusCode || 400).json({ success: false, message: result.error });
+      return;
+    }
+
+    res.status(200).json({ success: true, message: "Member removed successfully" });
   }
 
   public getRouter(): Router {

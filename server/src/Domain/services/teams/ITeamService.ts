@@ -1,14 +1,15 @@
 import { TeamDto } from "../../DTOs/teams/TeamDto";
 import { CreateTeamDto } from "../../DTOs/teams/CreateTeamDto";
+import { Result } from "../../types/Result";
 
 export interface ITeamService {
-  createTeam(userId: number, dto: CreateTeamDto): Promise<TeamDto>;
-  getTeamById(teamId: number): Promise<TeamDto | null>;
-  getMyTeams(userId: number): Promise<TeamDto[]>;
-  updateTeam(teamId: number, userId: number, dto: Partial<CreateTeamDto>): Promise<TeamDto | null>;
-  deleteTeam(teamId: number, userId: number): Promise<boolean>;
+  createTeam(userId: number, dto: CreateTeamDto): Promise<Result<TeamDto>>;
+  getTeamById(teamId: number): Promise<Result<TeamDto>>;
+  getMyTeams(userId: number): Promise<Result<TeamDto[]>>;
+  updateTeam(teamId: number, userId: number, dto: Partial<CreateTeamDto>): Promise<Result<TeamDto>>;
+  deleteTeam(teamId: number, userId: number): Promise<Result<boolean>>;
 
-  addMember(teamId: number, captainId: number, targetUserId: number): Promise<boolean>;
-  removeMember(teamId: number, requesterId: number, targetUserId: number): Promise<boolean>;
-  transferCaptain(teamId: number, currentCaptainId: number, newCaptainId: number): Promise<boolean>;
+  addMember(teamId: number, captainId: number, targetUserId: number): Promise<Result<boolean>>;
+  removeMember(teamId: number, requesterId: number, targetUserId: number): Promise<Result<boolean>>;
+  transferCaptain(teamId: number, currentCaptainId: number, newCaptainId: number): Promise<Result<boolean>>;
 }
