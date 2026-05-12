@@ -37,9 +37,9 @@ const auditLogRepo = new AuditLogRepository(db, logger);
 
 // Services
 const authService   = new AuthService(userRepo);
-const userService   = new UserService(userRepo);
 const entityService = new EntityService(entityRepo);
 const auditLogService = new AuditLogService(auditLogRepo);
+const userService   = new UserService(userRepo, logger, auditLogService);
 const tournamentService = new TournamentService(tournamentRepo, auditLogService);
 const gameService = new GameService(gamesRepo, auditLogService);
 
@@ -54,4 +54,5 @@ app.use("/api/v1", new EntityController(entityService).getRouter());
 app.use("/api/v1", new TournamentController(tournamentService).getRouter());
 app.use("/api/v1", new GameController(gameService).getRouter());
 app.use("/api/v1", new AuditLogController(auditLogService).getRouter());
+app.use("/api/v1", new UserController(userService).getRouter());
 export default app;
