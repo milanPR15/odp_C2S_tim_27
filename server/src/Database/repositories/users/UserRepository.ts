@@ -4,6 +4,8 @@ import { User } from "../../../Domain/models/User";
 import { UserRole } from "../../../Domain/enums/UserRole";
 import { DbManager } from "../../connection/DbConnectionPool";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
+import { UpdateProfileDto } from "../../../Domain/DTOs/account/UpdateProfileDto";
+import { Result } from "../../../Domain/types/Result";
 
 export class UserRepository implements IUserRepository {
   public constructor(
@@ -120,5 +122,47 @@ export class UserRepository implements IUserRepository {
       this.logger.error("UserRepository", "exists failed", err);
       return false;
     } finally { res.conn.release(); }
+  }
+
+  async updateProfile(userId: number, dto: UpdateProfileDto): Promise<boolean> {
+    const connResult = await this.db.getWriteConnection();
+    if (!connResult) {
+      this.logger.error("UserRepository", "updateProfile - nema konekcije");
+      return false;
+    }
+    const { conn } = connResult;
+
+    try {
+      const [result] = await conn.execute<ResultSetHeader>(
+        `UPDATE users 
+         SET 
+           gamer_tag     = COALESCE(?, gamer_tag),
+           full_name     = COALESCE(?, full_name),
+           email         = COALESCE(?, email),
+           password_hash = COALESCE(?, password_hash),
+           profile_image = COALESCE(?, profile_image),
+           updatedAt     = NOW()
+         WHERE id = ?`,
+        [
+          dto.gamer_tag ?? null,
+          dto.full_name ?? null,
+          dto.email ?? null,
+          dto.password ?? null,
+          dto.profile_image ?? null,
+          userId
+        ]
+      );
+
+      const success = result.affectedRows > 0;
+      if (success) {
+        this.logger.info("UserRepository", `Profil korisnika ${userId} uspešno ažuriran`);
+      }
+      return success;
+    } catch (err) {
+      this.logger.error("UserRepository", "updateProfile failed", err);
+      return false;
+    } finally {
+      conn.release();
+    }
   }
 }
