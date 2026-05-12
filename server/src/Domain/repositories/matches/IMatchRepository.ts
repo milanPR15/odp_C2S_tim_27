@@ -10,4 +10,6 @@ export interface IMatchRepository {
   addPlayer(matchId: number, userId: number, teamId: number, performanceNotes?: string): Promise<boolean>;
   removePlayer(matchId: number, userId: number): Promise<boolean>;
   findPlayers(matchId: number): Promise<MatchPlayer[]>;
+  isCaptainOfTeamInMatch(matchId: number, captainId: number): Promise<boolean>;
+  isPlayerInMatchTeam(matchId: number, userId: number): Promise<boolean>;
 }

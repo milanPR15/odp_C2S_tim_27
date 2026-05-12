@@ -130,4 +130,43 @@ export class MatchRepository implements IMatchRepository {
     }
   }
   
+    async isCaptainOfTeamInMatch(matchId: number, captainId: number): Promise<boolean> {
+    const connResult = await this.db.getReadConnection();
+    if (!connResult) return false;
+    const { conn } = connResult;
+
+    try {
+      const [rows] = await conn.execute(`
+        SELECT 1 FROM match_players mp
+        JOIN team_members tm ON mp.team_id = tm.team_id
+        WHERE mp.match_id = ? 
+          AND mp.user_id = ? 
+          AND tm.role = 'captain'
+        LIMIT 1
+      `, [matchId, captainId]);
+
+      return (rows as any).length > 0;
+    } finally {
+      conn.release();
+    }
+  }
+
+  async isPlayerInMatchTeam(matchId: number, userId: number): Promise<boolean> {
+    const connResult = await this.db.getReadConnection();
+    if (!connResult) return false;
+    const { conn } = connResult;
+
+    try {
+      const [rows] = await conn.execute(`
+        SELECT 1 FROM match_players 
+        WHERE match_id = ? AND user_id = ?
+        LIMIT 1
+      `, [matchId, userId]);
+
+      return (rows as any).length > 0;
+    } finally {
+      conn.release();
+    }
+  }
+  
 }

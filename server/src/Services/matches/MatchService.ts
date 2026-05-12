@@ -71,7 +71,7 @@ export class MatchService implements IMatchService {
     }
   }
 
-  async addPlayerToMatch(
+    async addPlayerToMatch(
     matchId: number, 
     captainId: number, 
     userId: number, 
@@ -79,6 +79,16 @@ export class MatchService implements IMatchService {
     performanceNotes?: string
   ): Promise<Result<void>> {
     try {
+
+      const isCaptain = await this.matchRepo.isCaptainOfTeamInMatch(matchId, captainId);
+      if (!isCaptain) {
+        return { success: false, error: "Only the team captain can add players to the match", statusCode: 403 };
+      }
+
+      const alreadyInMatch = await this.matchRepo.isPlayerInMatchTeam(matchId, userId);
+      if (alreadyInMatch) {
+        return { success: false, error: "Player is already in this match", statusCode: 400 };
+      }
 
       const success = await this.matchRepo.addPlayer(matchId, userId, teamId, performanceNotes);
       
@@ -100,6 +110,13 @@ export class MatchService implements IMatchService {
     userId: number
   ): Promise<Result<void>> {
     try {
+
+      const isCaptain = await this.matchRepo.isCaptainOfTeamInMatch(matchId, captainId);
+      const isSelf = captainId === userId;
+
+      if (!isCaptain && !isSelf) {
+        return { success: false, error: "Only the team captain or the player himself can remove a player", statusCode: 403 };
+      }
 
       const success = await this.matchRepo.removePlayer(matchId, userId);
       
