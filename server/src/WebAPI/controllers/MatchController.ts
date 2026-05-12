@@ -82,8 +82,8 @@ export class MatchController {
     const result = await this.matchService.addPlayerToMatch(
       matchId,
       req.user!.id,
-      userId,
-      teamId,
+      Number(userId),
+      Number(teamId),
       performanceNotes
     );
 
@@ -111,4 +111,5 @@ export class MatchController {
   public getRouter(): Router {
     return this.router;
   }
+  
 }
