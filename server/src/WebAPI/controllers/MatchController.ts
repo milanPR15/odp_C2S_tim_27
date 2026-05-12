@@ -66,11 +66,46 @@ export class MatchController {
   }
 
   private async addPlayerToMatch(req: Request, res: Response): Promise<void> {
-    res.status(501).json({ success: false, message: "Not implemented yet" });
+    const matchId = parseInt(req.params.id as string, 10);
+    if (isNaN(matchId)) {
+      res.status(400).json({ success: false, message: "Invalid match ID" });
+      return;
+    }
+
+    const { userId, teamId, performanceNotes } = req.body;
+
+    if (!userId || !teamId) {
+      res.status(400).json({ success: false, message: "userId and teamId are required" });
+      return;
+    }
+
+    const result = await this.matchService.addPlayerToMatch(
+      matchId,
+      req.user!.id,
+      userId,
+      teamId,
+      performanceNotes
+    );
+
+    res.status(result.success ? 200 : (result.statusCode || 500)).json(result);
   }
 
   private async removePlayerFromMatch(req: Request, res: Response): Promise<void> {
-    res.status(501).json({ success: false, message: "Not implemented yet" });
+    const matchId = parseInt(req.params.id as string, 10);
+    const userId = parseInt(req.params.userId as string, 10);
+
+    if (isNaN(matchId) || isNaN(userId)) {
+      res.status(400).json({ success: false, message: "Invalid IDs" });
+      return;
+    }
+
+    const result = await this.matchService.removePlayerFromMatch(
+      matchId,
+      req.user!.id,
+      userId
+    );
+
+    res.status(result.success ? 200 : (result.statusCode || 500)).json(result);
   }
 
   public getRouter(): Router {

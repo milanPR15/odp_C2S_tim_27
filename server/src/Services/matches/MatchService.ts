@@ -71,31 +71,47 @@ export class MatchService implements IMatchService {
     }
   }
 
-  async addPlayerToMatch(matchId: number, captainId: number, userId: number, teamId: number, performanceNotes?: string): Promise<Result<void>> {
-    // TODO: Proveriti da li je captainId zaista kapiten tima koji nastupa
+  async addPlayerToMatch(
+    matchId: number, 
+    captainId: number, 
+    userId: number, 
+    teamId: number, 
+    performanceNotes?: string
+  ): Promise<Result<void>> {
     try {
+
       const success = await this.matchRepo.addPlayer(matchId, userId, teamId, performanceNotes);
+      
       if (!success) {
         return { success: false, error: "Failed to add player to match", statusCode: 400 };
       }
+
+      this.logger.info("MatchService", `Player ${userId} added to match ${matchId} by captain ${captainId}`);
       return { success: true, data: undefined };
     } catch (err: any) {
       this.logger.error("MatchService", "addPlayerToMatch failed", err);
-      return { success: false, error: "Failed to add player", statusCode: 500 };
+      return { success: false, error: "Failed to add player to match", statusCode: 500 };
     }
   }
 
-  async removePlayerFromMatch(matchId: number, captainId: number, userId: number): Promise<Result<void>> {
-    // TODO: Proveriti dozvole
+  async removePlayerFromMatch(
+    matchId: number, 
+    captainId: number, 
+    userId: number
+  ): Promise<Result<void>> {
     try {
+
       const success = await this.matchRepo.removePlayer(matchId, userId);
+      
       if (!success) {
-        return { success: false, error: "Failed to remove player", statusCode: 400 };
+        return { success: false, error: "Failed to remove player from match", statusCode: 400 };
       }
+
+      this.logger.info("MatchService", `Player ${userId} removed from match ${matchId} by captain ${captainId}`);
       return { success: true, data: undefined };
     } catch (err: any) {
       this.logger.error("MatchService", "removePlayerFromMatch failed", err);
-      return { success: false, error: "Failed to remove player", statusCode: 500 };
+      return { success: false, error: "Failed to remove player from match", statusCode: 500 };
     }
   }
 }
