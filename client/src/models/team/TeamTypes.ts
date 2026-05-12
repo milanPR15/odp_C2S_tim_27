@@ -17,4 +17,13 @@ export interface CreateTeamDto {
   description?: string;
 }
 
-export interface UpdateTeamDto extends Partial<CreateTeamDto> {}
+export type UpdateTeamDto = Partial<CreateTeamDto>
+
+export interface TeamInvitationDto {
+  id: number;
+  team_id: number;
+  user_id: number;
+  status: 'pending' | 'accepted' | 'declined' | 'cancelled';
+  team_name?: string;
+  created_at?: string | Date;
+}

@@ -1,42 +1,75 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { teamsApi } from "../../api_services/teams/TeamsAPIService";
-import type { TeamDto } from "../../models/team/TeamTypes";
+import type { TeamDto, TeamInvitationDto } from "../../models/team/TeamTypes";
 import { Empty, ErrorBox, PageHeader, Spinner, StatCard } from "../../components/ui/UI";
 import { TeamCard } from "../../components/team_display/TeamCard";
 
 export default function TeamsCatalogPage() {
   const [teams, setTeams] = useState<TeamDto[]>([]);
+  const [invitations, setInvitations] = useState<TeamInvitationDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [inviteProcessId, setInviteProcessId] = useState<number | null>(null);
 
   useEffect(() => {
     let active = true;
 
-    async function loadTeams() {
+    async function loadData() {
       setIsLoading(true);
       setError("");
 
-      const res = await teamsApi.getMyTeams();
-      if (!active) return;
+      try {
+        const [teamsRes, invitesRes] = await Promise.all([
+          teamsApi.getMyTeams(),
+          teamsApi.getMyInvitations()
+        ]);
 
-      if (!res.success) {
-        setTeams([]);
-        setError(res.message || "Failed to load teams.");
-        setIsLoading(false);
-        return;
+        if (!active) return;
+        
+        if (!teamsRes.success || !invitesRes.success) {
+          setError(teamsRes.message || invitesRes.message || "Failed to load data.");
+          setTeams(teamsRes.data ?? []);
+          setInvitations(invitesRes.data?.filter(i => i.status === 'pending') ?? []);
+        } else {
+          setTeams(teamsRes.data ?? []);
+          setInvitations(invitesRes.data?.filter(i => i.status === 'pending') ?? []);
+        }
+      } catch {
+        if (active) setError("An error occurred while loading data.");
+      } finally {
+        if (active) setIsLoading(false);
       }
-
-      setTeams(res.data ?? []);
-      setIsLoading(false);
     }
 
-    loadTeams();
+    loadData();
 
     return () => {
       active = false;
     };
   }, []);
+
+  const handleRespondToInvite = async (teamId: number, accept: boolean) => {
+    setInviteProcessId(teamId);
+    setError("");
+    
+    const res = await teamsApi.respondToInvite(teamId, accept);
+    setInviteProcessId(null);
+    
+    if (!res.success) {
+      setError(res.message || "Failed to respond to invitation.");
+      return;
+    }
+
+    setInvitations(prev => prev.filter(i => i.team_id !== teamId));
+    
+    if (accept) {
+      const teamsRes = await teamsApi.getMyTeams();
+      if (teamsRes.success) {
+        setTeams(teamsRes.data ?? []);
+      }
+    }
+  };
 
   const sortedTeams = useMemo(
     () => [...teams].sort((a, b) => a.team_name.localeCompare(b.team_name)),
@@ -65,6 +98,39 @@ export default function TeamsCatalogPage() {
       {error && (
         <div className="mb-4">
           <ErrorBox message={error} />
+        </div>
+      )}
+
+      {invitations.length > 0 && !isLoading && (
+        <div className="mb-8 space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-violet-300">Pending Invitations ({invitations.length})</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {invitations.map(invite => (
+              <div key={invite.id} className="flex flex-col gap-3 rounded-xl border border-violet-500/20 bg-violet-500/5 p-4 transition hover:bg-violet-500/10">
+                <div className="flex-1">
+                  <p className="text-sm text-gray-300">
+                    You have been invited to join <span className="font-semibold text-white">{invite.team_name || `Team #${invite.team_id}`}</span>.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleRespondToInvite(invite.team_id, true)}
+                    disabled={inviteProcessId === invite.team_id}
+                    className="flex-1 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-violet-500 disabled:opacity-50"
+                  >
+                    {inviteProcessId === invite.team_id ? <Spinner size={12} /> : "Accept"}
+                  </button>
+                  <button
+                    onClick={() => handleRespondToInvite(invite.team_id, false)}
+                    disabled={inviteProcessId === invite.team_id}
+                    className="flex-1 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-200 transition hover:bg-red-500/20 hover:text-red-100 disabled:opacity-50"
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

@@ -1,6 +1,6 @@
 import axios from "axios";
 import type { ApiResponse, ITeamsAPIService } from "./ITeamsAPIService";
-import type { CreateTeamDto, TeamDto, UpdateTeamDto } from "../../models/team/TeamTypes";
+import type { CreateTeamDto, TeamDto, UpdateTeamDto, TeamInvitationDto } from "../../models/team/TeamTypes";
 import { authHeader, handleError } from "../ApiUtils";
 
 const BASE = import.meta.env.VITE_API_URL + "teams";
@@ -41,13 +41,28 @@ export const teamsApi: ITeamsAPIService = {
       .then((r) => r.data).catch((e) => handleError(e, e.response?.data?.message ?? "Failed to remove member"));
   },
 
-  async sendInvite(teamId: number) {
-    return axios.post<ApiResponse<void>>(`${BASE}/${teamId}/invite`, {}, { headers: authHeader() })
+  async sendInvite(teamId: number, identifier: string) {
+    return axios.post<ApiResponse<void>>(`${BASE}/${teamId}/invite`, { identifier }, { headers: authHeader() })
       .then((r) => r.data).catch((e) => handleError(e, e.response?.data?.message ?? "Failed to send invite"));
   },
 
-  async respondToInvite(teamId: number) {
-    return axios.post<ApiResponse<void>>(`${BASE}/${teamId}/invite/respond`, {}, { headers: authHeader() })
+  async respondToInvite(teamId: number, accept: boolean) {
+    return axios.post<ApiResponse<void>>(`${BASE}/${teamId}/invite/respond`, { accept }, { headers: authHeader() })
       .then((r) => r.data).catch((e) => handleError(e, e.response?.data?.message ?? "Failed to respond to invite"));
+  },
+
+  async getMyInvitations() {
+    return axios.get<ApiResponse<TeamInvitationDto[]>>(`${BASE}/invitations/me`, { headers: authHeader() })
+      .then((r) => r.data).catch((e) => handleError(e, e.response?.data?.message ?? "Failed to load your invitations"));
+  },
+
+  async getTeamInvitations(teamId: number) {
+    return axios.get<ApiResponse<TeamInvitationDto[]>>(`${BASE}/${teamId}/invitations`, { headers: authHeader() })
+      .then((r) => r.data).catch((e) => handleError(e, e.response?.data?.message ?? "Failed to load team invitations"));
+  },
+
+  async cancelInvite(inviteId: number) {
+    return axios.delete<ApiResponse<void>>(`${BASE}/invitations/${inviteId}`, { headers: authHeader() })
+      .then((r) => r.data).catch((e) => handleError(e, e.response?.data?.message ?? "Failed to cancel invite"));
   }
 };

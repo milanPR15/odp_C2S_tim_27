@@ -1,8 +1,11 @@
 import { ITeamService } from "../../Domain/services/teams/ITeamService";
 import { ITeamRepository } from "../../Domain/repositories/teams/ITeamRepository";
+import { ITeamInvitationRepository } from "../../Domain/repositories/team_invitations/ITeamInvitationRepository";
 import { TeamDto } from "../../Domain/DTOs/teams/TeamDto";
 import { CreateTeamDto } from "../../Domain/DTOs/teams/CreateTeamDto";
 import { Team } from "../../Domain/models/Team";
+import { TeamInvitation } from "../../Domain/models/TeamInvitation";
+import { InvitationStatus } from "../../Domain/enums/InvitationStatus";
 import { ILoggerService } from "../../Domain/services/logger/ILoggerService";
 import { Result } from "../../Domain/types/Result";
 
@@ -10,6 +13,7 @@ export class TeamService implements ITeamService {
 
   public constructor(
     private readonly teamRepo: ITeamRepository,
+    private readonly invitationRepo: ITeamInvitationRepository,
     private readonly logger: ILoggerService
   ) {}
 
@@ -145,6 +149,105 @@ export class TeamService implements ITeamService {
 
     const success = await this.teamRepo.changeCaptain(teamId, newCaptainId);
     if (!success) return { success: false, error: "Failed to transfer captain", statusCode: 400 };
+    return { success: true, data: true };
+  }
+
+  async sendInvite(teamId: number, captainId: number, targetUserId: number): Promise<Result<boolean>> {
+    // 1. Verify captain
+    const members = await this.teamRepo.findMembers(teamId);
+    if (members.length === 0) {
+      return { success: false, error: "Team not found", statusCode: 404 };
+    }
+
+    const isCaptain = members.some((m) => m.user_id === captainId && m.role === 'captain');
+    if (!isCaptain) {
+      return { success: false, error: "Only team captain can invite members", statusCode: 403 };
+    }
+
+    // 2. Check if already in the team
+    const inTeam = members.some((m) => m.user_id === targetUserId);
+    if (inTeam) {
+      return { success: false, error: "User is already in the team", statusCode: 400 };
+    }
+
+    // 3. Check for pending invites
+    const existingInvite = await this.invitationRepo.findByTeamAndUser(teamId, targetUserId);
+    if (existingInvite && existingInvite.status === InvitationStatus.PENDING) {
+      return { success: false, error: "An invitation is already pending for this user", statusCode: 400 };
+    }
+
+    // 4. Create invite
+    const invite = await this.invitationRepo.create(teamId, targetUserId);
+    if (!invite.id) {
+       return { success: false, error: "Failed to send invitation", statusCode: 500 };
+    }
+
+    return { success: true, data: true };
+  }
+
+  async respondToInvite(teamId: number, userId: number, accept: boolean): Promise<Result<boolean>> {
+    // 1. Get invite by team and user
+    const invite = await this.invitationRepo.findByTeamAndUser(teamId, userId);
+    if (!invite) {
+      return { success: false, error: "Pending invitation not found", statusCode: 404 };
+    }
+
+    if (invite.status !== InvitationStatus.PENDING) {
+      return { success: false, error: "Invitation is no longer pending", statusCode: 400 };
+    }
+
+    // 2. Update status and conditionally add to team
+    const newStatus = accept ? InvitationStatus.ACCEPTED : InvitationStatus.DECLINED;
+    const updated = await this.invitationRepo.updateStatus(invite.id, newStatus);
+
+    if (!updated) {
+      return { success: false, error: "Failed to update invitation status", statusCode: 500 };
+    }
+
+    if (accept) {
+      const added = await this.teamRepo.addMember(invite.team_id, userId, 'member');
+      if (!added) {
+        return { success: false, error: "Failed to add member to team", statusCode: 500 };
+      }
+    }
+
+    return { success: true, data: true };
+  }
+
+  async getMyInvitations(userId: number): Promise<Result<TeamInvitation[]>> {
+    const invitations = await this.invitationRepo.findByUserId(userId);
+    return { success: true, data: invitations };
+  }
+
+  async getTeamInvitations(teamId: number, captainId: number): Promise<Result<TeamInvitation[]>> {
+    const members = await this.teamRepo.findMembers(teamId);
+    if (members.length === 0) return { success: false, error: "Team not found", statusCode: 404 };
+
+    const isCaptain = members.some((m) => m.user_id === captainId && m.role === 'captain');
+    if (!isCaptain) {
+      this.logger.warn("TeamService", `User ${captainId} attempted to get invitations for team ${teamId} without captain rights.`);
+      return { success: false, error: "Only team captain can view team invitations", statusCode: 403 };
+    }
+
+    const invitations = await this.invitationRepo.findByTeamId(teamId);
+    return { success: true, data: invitations };
+  }
+
+  async cancelInvite(inviteId: number, captainId: number): Promise<Result<boolean>> {
+    const invite = await this.invitationRepo.findById(inviteId);
+    if (!invite) return { success: false, error: "Invitation not found", statusCode: 404 };
+
+    const members = await this.teamRepo.findMembers(invite.team_id);
+    const isCaptain = members.some((m) => m.user_id === captainId && m.role === 'captain');
+    
+    if (!isCaptain) {
+      this.logger.warn("TeamService", `User ${captainId} attempted to cancel invitation ${inviteId} without captain rights.`);
+      return { success: false, error: "Only team captain can cancel invitations", statusCode: 403 };
+    }
+
+    const updated = await this.invitationRepo.updateStatus(inviteId, InvitationStatus.DECLINED);
+    if (!updated) return { success: false, error: "Failed to cancel invitation", statusCode: 500 };
+
     return { success: true, data: true };
   }
 }
