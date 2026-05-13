@@ -1,6 +1,7 @@
 import { ITeamService } from "../../Domain/services/teams/ITeamService";
 import { ITeamRepository } from "../../Domain/repositories/teams/ITeamRepository";
 import { ITeamInvitationRepository } from "../../Domain/repositories/team_invitations/ITeamInvitationRepository";
+import { IUserRepository } from "../../Domain/repositories/users/IUserRepository";
 import { TeamDto } from "../../Domain/DTOs/teams/TeamDto";
 import { CreateTeamDto } from "../../Domain/DTOs/teams/CreateTeamDto";
 import { Team } from "../../Domain/models/Team";
@@ -14,6 +15,7 @@ export class TeamService implements ITeamService {
   public constructor(
     private readonly teamRepo: ITeamRepository,
     private readonly invitationRepo: ITeamInvitationRepository,
+    private readonly userRepo: IUserRepository,
     private readonly logger: ILoggerService
   ) {}
 
@@ -27,6 +29,8 @@ export class TeamService implements ITeamService {
        return { success: false, error: "Failed to create team", statusCode: 500 };
     }
 
+    const user = await this.userRepo.findById(userId);
+
     return { 
       success: true, 
       data: new TeamDto(
@@ -36,49 +40,72 @@ export class TeamService implements ITeamService {
         team.logo,
         team.description,
         userId,                    
-        "",                        
+        user.gamer_tag,                        
         1,                         
-        team.createdAt
+        team.createdAt,
+        [{
+          user_id: user.id,
+          gamer_tag: user.gamer_tag,
+          full_name: user.full_name,
+          role: 'captain' as any,
+          joined_at: new Date()
+        }]
       )
     };
+  }
+
+  private async toTeamDto(team: Team): Promise<TeamDto> {
+    const members = await this.teamRepo.findMembers(team.team_id);
+    const captain = members.find(m => m.role === 'captain');
+    
+    let captainTag = "";
+    if (captain) {
+        const user = await this.userRepo.findById(captain.user_id);
+        if (user) captainTag = user.gamer_tag;
+    }
+
+    const memberDtos = await Promise.all(members.map(async m => {
+      const u = await this.userRepo.findById(m.user_id);
+      return {
+        user_id: m.user_id,
+        gamer_tag: u ? u.gamer_tag : "",
+        full_name: u ? u.full_name : "",
+        role: m.role,
+        joined_at: m.joined_at
+      };
+    }));
+
+    return new TeamDto(
+        team.team_id,
+        team.team_name,
+        team.tag,
+        team.logo,
+        team.description,
+        captain ? captain.user_id : 0, 
+        captainTag,
+        members.length,
+        team.createdAt,
+        memberDtos
+    );
   }
 
   async getTeamById(teamId: number): Promise<Result<TeamDto>> {
     const team = await this.teamRepo.findById(teamId);
     if (!team) return { success: false, error: "Team not found", statusCode: 404 };
 
-    // TODO: kasnije dodati captain_gamer_tag i members
+    const dto = await this.toTeamDto(team);
     return { 
       success: true,
-      data: new TeamDto(
-        team.team_id,
-        team.team_name,
-        team.tag,
-        team.logo,
-        team.description,
-        0, 
-        "",
-        0,
-        team.createdAt
-      )
+      data: dto
     };
   }
 
   async getMyTeams(userId: number): Promise<Result<TeamDto[]>> {
     const teams = await this.teamRepo.findByUserId(userId);
+    const dtos = await Promise.all(teams.map(team => this.toTeamDto(team)));
     return {
       success: true,
-      data: teams.map(team => new TeamDto(
-        team.team_id,
-        team.team_name,
-        team.tag,
-        team.logo,
-        team.description,
-        0,
-        "",
-        0,
-        team.createdAt
-      ))
+      data: dtos
     };
   }
 
@@ -152,8 +179,15 @@ export class TeamService implements ITeamService {
     return { success: true, data: true };
   }
 
-  async sendInvite(teamId: number, captainId: number, targetUserId: number): Promise<Result<boolean>> {
-    // 1. Verify captain
+  async sendInvite(teamId: number, captainId: number, username: string): Promise<Result<boolean>> {
+    // 1. Find user
+    const targetUser = await this.userRepo.findByUsername(username);
+    if (!targetUser.id) {
+       return { success: false, error: "User not found", statusCode: 404 };
+    }
+    const targetUserId = targetUser.id;
+
+    // 2. Verify captain
     const members = await this.teamRepo.findMembers(teamId);
     if (members.length === 0) {
       return { success: false, error: "Team not found", statusCode: 404 };
@@ -164,19 +198,19 @@ export class TeamService implements ITeamService {
       return { success: false, error: "Only team captain can invite members", statusCode: 403 };
     }
 
-    // 2. Check if already in the team
+    // 3. Check if already in the team
     const inTeam = members.some((m) => m.user_id === targetUserId);
     if (inTeam) {
       return { success: false, error: "User is already in the team", statusCode: 400 };
     }
 
-    // 3. Check for pending invites
+    // 4. Check for pending invites
     const existingInvite = await this.invitationRepo.findByTeamAndUser(teamId, targetUserId);
     if (existingInvite && existingInvite.status === InvitationStatus.PENDING) {
       return { success: false, error: "An invitation is already pending for this user", statusCode: 400 };
     }
 
-    // 4. Create invite
+    // 5. Create invite
     const invite = await this.invitationRepo.create(teamId, targetUserId);
     if (!invite.id) {
        return { success: false, error: "Failed to send invitation", statusCode: 500 };

@@ -47,7 +47,8 @@ export class TeamController {
       req.body.team_name,
       req.body.tag,
       req.body.logo || "",
-      req.body.description || null
+      req.body.description || null,
+      req.body.captan_id
     );
 
     const result = await this.teamService.createTeam(userId, dto);
@@ -115,14 +116,14 @@ export class TeamController {
   private async sendInvite(req: Request, res: Response): Promise<void> {
     const captainId = req.user!.id;
     const teamId = parseInt(req.params.id as string, 10);
-    const targetUserId = parseInt(req.body.userId as string, 10);
+    const identifier = req.body.identifier as string;
 
-    if (isNaN(teamId) || isNaN(targetUserId)) {
-      res.status(400).json({ success: false, message: "Invalid IDs provided" });
+    if (isNaN(teamId) || !identifier) {
+      res.status(400).json({ success: false, message: "Invalid payload provided" });
       return;
     }
 
-    const result = await this.teamService.sendInvite(teamId, captainId, targetUserId);
+    const result = await this.teamService.sendInvite(teamId, captainId, identifier);
     
     if (!result.success) {
       res.status(result.statusCode || 400).json({ success: false, message: result.error });

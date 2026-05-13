@@ -10,6 +10,7 @@ export class TeamDto {
     public captain_id: number,           
     public captain_gamer_tag: string,    
     public members_count: number,
-    public created_at: Date, 
+    public created_at: Date,
+    public members?: TeamMemberDto[]
   ) {}
 }

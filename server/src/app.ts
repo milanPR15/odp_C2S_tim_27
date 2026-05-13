@@ -43,7 +43,7 @@ const teamRepo = new TeamRepository(db, logger);
 const teamInvitationRepo = new TeamInvitationRepository(db, logger);
 
 // Services
-const teamService = new TeamService(teamRepo, teamInvitationRepo, logger);
+const teamService = new TeamService(teamRepo, teamInvitationRepo, userRepo, logger);
 const authService   = new AuthService(userRepo);
 const userService   = new UserService(userRepo);
 const entityService = new EntityService(entityRepo);

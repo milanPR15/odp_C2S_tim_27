@@ -1,3 +1,11 @@
+export interface TeamMemberDto {
+  user_id: number;
+  gamer_tag: string;
+  full_name: string;
+  role: 'captain' | 'member';
+  joined_at: string | Date;
+}
+
 export interface TeamDto {
   team_id: number;
   team_name: string;
@@ -8,6 +16,7 @@ export interface TeamDto {
   captain_gamer_tag?: string;
   num_members?: number;
   createdAt: Date | string;
+  members?: TeamMemberDto[];
 }
 
 export interface CreateTeamDto {

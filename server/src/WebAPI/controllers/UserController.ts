@@ -8,7 +8,7 @@ export class UserController {
   private readonly router = Router();
 
   public constructor(private readonly userService: IUserService) {
-    this.router.get("/users",          authenticate, authorize(UserRole.ADMIN), this.getAll.bind(this));
+    this.router.get("/users",          authenticate, this.getAll.bind(this));
     this.router.get("/users/:id",      authenticate, authorize(UserRole.ADMIN), this.getById.bind(this));
     this.router.patch("/users/:id/deactivate", authenticate, authorize(UserRole.ADMIN), this.deactivate.bind(this));
   }

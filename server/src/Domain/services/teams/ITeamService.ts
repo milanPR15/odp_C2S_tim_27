@@ -14,7 +14,7 @@ export interface ITeamService {
   removeMember(teamId: number, requesterId: number, targetUserId: number): Promise<Result<boolean>>;
   transferCaptain(teamId: number, currentCaptainId: number, newCaptainId: number): Promise<Result<boolean>>;
 
-  sendInvite(teamId: number, captainId: number, targetUserId: number): Promise<Result<boolean>>;
+  sendInvite(teamId: number, captainId: number, username: string): Promise<Result<boolean>>;
   respondToInvite(teamId: number, userId: number, accept: boolean): Promise<Result<boolean>>;
   getMyInvitations(userId: number): Promise<Result<TeamInvitation[]>>;
   getTeamInvitations(teamId: number, captainId: number): Promise<Result<TeamInvitation[]>>;
