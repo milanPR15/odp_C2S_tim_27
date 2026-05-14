@@ -25,6 +25,11 @@ import { TournamentController } from "./WebAPI/controllers/TournamentControler";
 import { GameController } from "./WebAPI/controllers/GamesController";
 import { AuditLogController } from "./WebAPI/controllers/AuditLogController";
 
+import { TeamRepository } from "./Database/repositories/team/TeamRepository";
+import { TeamInvitationRepository } from "./Database/repositories/team_invitations/TeamInvitationRepository";
+import { TeamService } from "./Services/teams/TeamService";
+import { TeamController } from "./WebAPI/controllers/TeamController";
+
 export const logger = new ConsoleLoggerService();
 export const db     = new DbManager(logger);
 
@@ -34,8 +39,11 @@ const entityRepo = new EntityRepository(db, logger);
 const tournamentRepo = new TournamentRepository(db, logger);
 const gamesRepo = new GamesRepository(db, logger);
 const auditLogRepo = new AuditLogRepository(db, logger);
+const teamRepo = new TeamRepository(db, logger);
+const teamInvitationRepo = new TeamInvitationRepository(db, logger);
 
 // Services
+const teamService = new TeamService(teamRepo, teamInvitationRepo, userRepo, logger);
 const authService   = new AuthService(userRepo);
 const userService   = new UserService(userRepo);
 const entityService = new EntityService(entityRepo);
@@ -54,4 +62,5 @@ app.use("/api/v1", new EntityController(entityService).getRouter());
 app.use("/api/v1", new TournamentController(tournamentService).getRouter());
 app.use("/api/v1", new GameController(gameService).getRouter());
 app.use("/api/v1", new AuditLogController(auditLogService).getRouter());
+app.use("/api/v1", new TeamController(teamService).getRouter());
 export default app;

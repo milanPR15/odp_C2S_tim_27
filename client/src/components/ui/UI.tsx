@@ -161,3 +161,36 @@ export function BackButton({ label = "Back", fallbackTo }: { label?: string; fal
     </button>
   );
 }
+
+export function Modal({ 
+  isOpen, 
+  onClose, 
+  title, 
+  children 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  title: string; 
+  children: ReactNode; 
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="relative w-full max-w-lg rounded-2xl border border-white/10 bg-[#0f1115] shadow-2xl p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold tracking-tight text-white">{title}</h2>
+          <button 
+            onClick={onClose}
+            className="rounded-lg p-2 hover:bg-white/5 text-white/40 hover:text-white/80 transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+        <div>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
