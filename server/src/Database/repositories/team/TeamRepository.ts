@@ -1,4 +1,4 @@
-import { ResultSetHeader } from "mysql2";
+import { RowDataPacket, ResultSetHeader } from "mysql2";
 import { ITeamRepository } from "../../../Domain/repositories/teams/ITeamRepository";
 import { Team } from "../../../Domain/models/Team";
 import { TeamMember } from "../../../Domain/models/TeamMember";
@@ -15,7 +15,7 @@ export class TeamRepository implements ITeamRepository {
 
   async create(dto: CreateTeamDto, userId: number): Promise<Team> {
     const connResult = await this.db.getWriteConnection();
-    if (!connResult) throw new Error("No database connection available");
+    if (!connResult) return new Team();
 
     const { conn } = connResult;
     try {
@@ -33,8 +33,11 @@ export class TeamRepository implements ITeamRepository {
         [teamId, userId]
       );
 
-      const [rows] = await conn.execute("SELECT * FROM team WHERE team_id = ?", [teamId]);
-      return Team.fromDB((rows as any)[0]);
+      const [rows] = await conn.execute<RowDataPacket[]>("SELECT * FROM team WHERE team_id = ?", [teamId]);
+      return Team.fromDB(rows[0]);
+    } catch (err) {
+      this.logger.error("TeamRepository", "create failed", err);
+      return new Team();
     } finally {
       conn.release();
     }
@@ -46,9 +49,12 @@ export class TeamRepository implements ITeamRepository {
     const { conn } = connResult;
 
     try {
-      const [rows] = await conn.execute("SELECT * FROM team WHERE team_id = ?", [teamId]);
-      const row = (rows as any)[0];
+      const [rows] = await conn.execute<RowDataPacket[]>("SELECT * FROM team WHERE team_id = ?", [teamId]);
+      const row = rows[0];
       return row ? Team.fromDB(row) : null;
+    } catch (err) {
+      this.logger.error("TeamRepository", "findById failed", err);
+      return null;
     } finally {
       conn.release();
     }
@@ -60,13 +66,16 @@ export class TeamRepository implements ITeamRepository {
     const { conn } = connResult;
 
     try {
-      const [rows] = await conn.execute(`
+      const [rows] = await conn.execute<RowDataPacket[]>(`
         SELECT t.* FROM team t
         JOIN team_members tm ON t.team_id = tm.team_id
         WHERE tm.user_id = ?
       `, [userId]);
 
-      return (rows as any).map((row: any) => Team.fromDB(row));
+      return rows.map((row) => Team.fromDB(row));
+    } catch (err) {
+      this.logger.error("TeamRepository", "findByUserId failed", err);
+      return [];
     } finally {
       conn.release();
     }
@@ -78,11 +87,14 @@ export class TeamRepository implements ITeamRepository {
     const { conn } = connResult;
 
     try {
-      const [rows] = await conn.execute(`
+      const [rows] = await conn.execute<RowDataPacket[]>(`
         SELECT tm.* FROM team_members tm WHERE tm.team_id = ?
       `, [teamId]);
 
-      return (rows as any).map((row: any) => TeamMember.fromDB(row));
+      return rows.map((row) => TeamMember.fromDB(row));
+    } catch (err) {
+      this.logger.error("TeamRepository", "findMembers failed", err);
+      return [];
     } finally {
       conn.release();
     }
@@ -102,6 +114,9 @@ export class TeamRepository implements ITeamRepository {
         [teamData.team_name ?? null, teamData.description ?? null, teamId]
       );
       return result.affectedRows > 0;
+    } catch (err) {
+      this.logger.error("TeamRepository", "update failed", err);
+      return false;
     } finally {
       conn.release();
     }
@@ -113,8 +128,11 @@ export class TeamRepository implements ITeamRepository {
     const { conn } = connResult;
 
     try {
-      const [result] = await conn.execute("DELETE FROM team WHERE team_id = ?", [teamId]);
-      return (result as any).affectedRows > 0;
+      const [result] = await conn.execute<ResultSetHeader>("DELETE FROM team WHERE team_id = ?", [teamId]);
+      return result.affectedRows > 0;
+    } catch (err) {
+      this.logger.error("TeamRepository", "delete failed", err);
+      return false;
     } finally {
       conn.release();
     }
@@ -126,11 +144,14 @@ export class TeamRepository implements ITeamRepository {
     const { conn } = connResult;
 
     try {
-      await conn.execute(
+      await conn.execute<ResultSetHeader>(
         `INSERT INTO team_members (team_id, user_id, role) VALUES (?, ?, ?)`,
         [teamId, userId, role]
       );
       return true;
+    } catch (err) {
+      this.logger.error("TeamRepository", "addMember failed", err);
+      return false;
     } finally {
       conn.release();
     }
@@ -142,11 +163,14 @@ export class TeamRepository implements ITeamRepository {
     const { conn } = connResult;
 
     try {
-      const [result] = await conn.execute(
+      const [result] = await conn.execute<ResultSetHeader>(
         `DELETE FROM team_members WHERE team_id = ? AND user_id = ?`,
         [teamId, userId]
       );
-      return (result as any).affectedRows > 0;
+      return result.affectedRows > 0;
+    } catch (err) {
+      this.logger.error("TeamRepository", "removeMember failed", err);
+      return false;
     } finally {
       conn.release();
     }
@@ -162,11 +186,14 @@ export class TeamRepository implements ITeamRepository {
     const { conn } = connResult;
 
     try {
-      const [rows] = await conn.execute(
+      const [rows] = await conn.execute<RowDataPacket[]>(
         `SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ? LIMIT 1`,
         [teamId, userId]
       );
-      return (rows as any).length > 0;
+      return rows.length > 0;
+    } catch (err) {
+      this.logger.error("TeamRepository", "isUserInTeam failed", err);
+      return false;
     } finally {
       conn.release();
     }

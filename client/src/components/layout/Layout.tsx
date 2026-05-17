@@ -6,6 +6,7 @@ const userNav = [
   { to: "/dashboard", label: "Dashboard", icon: "⬡" },
   { to: "/games", label: "Games Catalog", icon: "✦" },
   { to: "/tournaments", label: "Tournaments", icon: "◉" },
+  { to: "/teams", label: "My Teams", icon: "◫" },
 ];
 const adminNav = [
   { to: "/admin",       label: "Dashboard", icon: "⬡" },
@@ -13,6 +14,7 @@ const adminNav = [
   { to: "/admin/audit-logs", label: "Audit Logs", icon: "▤" },
   { to: "/games", label: "Games Catalog", icon: "✦" },
   { to: "/tournaments", label: "Tournaments", icon: "◌" },
+  { to: "/teams", label: "My Teams", icon: "◫" },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {
