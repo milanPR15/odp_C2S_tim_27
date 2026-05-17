@@ -1,5 +1,13 @@
 import { TeamRole } from "../enums/TeamRole";
 
+interface TeamMemberRow {
+  id: number;
+  team_id: number;
+  user_id: number;
+  role: TeamRole;
+  joined_at: Date | string | null;
+}
+
 export class TeamMember {
   constructor(
     public id: number = 0,
@@ -9,7 +17,7 @@ export class TeamMember {
     public joined_at: Date = new Date()
   ) {}
 
-  static fromDB(row: any): TeamMember {
+  static fromDB(row: TeamMemberRow): TeamMember {
     return new TeamMember(
       row.id,
       row.team_id,

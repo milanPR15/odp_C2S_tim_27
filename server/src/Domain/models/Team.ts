@@ -1,3 +1,13 @@
+interface TeamRow {
+  team_id: number;
+  team_name: string;
+  tag: string;
+  logo: string;
+  description: string | null;
+  created_at: Date | string | null;
+  updated_at: Date | string | null;
+}
+
 export class Team{
     public constructor(
         public team_id: number=0,
@@ -9,7 +19,7 @@ export class Team{
         public updatedAt: Date = new Date()
     ){}
 
-    static fromDB(row: any): Team {
+    static fromDB(row: TeamRow): Team {
     return new Team(
       row.team_id,
       row.team_name,
