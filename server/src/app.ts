@@ -27,6 +27,7 @@ import { TournamentController } from "./WebAPI/controllers/TournamentControler";
 import { GameController } from "./WebAPI/controllers/GamesController";
 import { AuditLogController } from "./WebAPI/controllers/AuditLogController";
 import { MatchController } from "./WebAPI/controllers/MatchController";
+import { TeamRepository } from "./Database/repositories/team/TeamRepository";
 
 
 
@@ -42,6 +43,7 @@ const tournamentRepo = new TournamentRepository(db, logger);
 const gamesRepo = new GamesRepository(db, logger);
 const auditLogRepo = new AuditLogRepository(db, logger);
 const matchRepo    = new MatchRepository(db, logger);
+const teamRepo     = new TeamRepository(db, logger);
 
 
 // Services
@@ -51,7 +53,7 @@ const entityService = new EntityService(entityRepo);
 const auditLogService = new AuditLogService(auditLogRepo);
 const tournamentService = new TournamentService(tournamentRepo, auditLogService);
 const gameService = new GameService(gamesRepo, auditLogService);
-const matchService = new MatchService(matchRepo, logger);
+const matchService = new MatchService(matchRepo, teamRepo, logger);
 
 // Express
 const app = express();

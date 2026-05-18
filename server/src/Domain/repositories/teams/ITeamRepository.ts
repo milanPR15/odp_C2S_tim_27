@@ -12,5 +12,6 @@ export interface ITeamRepository{
     updateMemberRole(teamId: number, userId: number, newRole: 'captain' | 'member'): Promise<boolean>;
     getTeamMembers(teamId: number): Promise<(User & { role: string, joined_at: Date })[]>;
     findTeamsByUserId(userId: number): Promise<Team[]>;
+    getConfirmedTournamentTeams(tournamentId: number): Promise<Team[]>;
 }
 

@@ -174,4 +174,34 @@ export class TeamRepository implements ITeamRepository {
       res.conn.release();
     }
   }
+
+  async getConfirmedTournamentTeams(tournamentId: number): Promise<Team[]> {
+
+    const res = await this.db.getReadConnection();
+
+    if (!res) {
+      return [];
+    }
+
+    try {
+
+      const [rows] = await res.conn.execute<RowDataPacket[]>(
+        `
+        SELECT t.*
+        FROM teams t
+        JOIN tournament_registrations tr
+          ON t.team_id = tr.team_id
+        WHERE tr.tournament_id = ?
+          AND tr.status = 'confirmed'
+        `,
+        [tournamentId]
+      );
+
+      return rows.map(r => this.map(r));
+
+    } finally {
+
+      res.conn.release();
+    }
+  }
 }

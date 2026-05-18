@@ -1,5 +1,6 @@
 import { IMatchService } from "../../Domain/services/matches/IMatchService";
 import { IMatchRepository } from "../../Domain/repositories/matches/IMatchRepository";
+import { ITeamRepository } from "../../Domain/repositories/teams/ITeamRepository";
 import { MatchDto } from "../../Domain/DTOs/matches/MatchDto";
 import { UpdateMatchResultDto } from "../../Domain/DTOs/matches/UpdateMatchResultDto";
 import { Result } from "../../Domain/types/Result";
@@ -9,6 +10,7 @@ export class MatchService implements IMatchService {
 
   public constructor(
     private readonly matchRepo: IMatchRepository,
+    private readonly teamRepo: ITeamRepository,
     private readonly logger: ILoggerService
   ) {}
 
@@ -162,6 +164,61 @@ export class MatchService implements IMatchService {
     } catch (err) {
       this.logger.error("MatchService", "removePlayerFromMatch failed", String(err));
       return { success: false, error: "Failed to remove player from match", statusCode: 500 };
+    }
+  }
+
+  async generateMatchesForTournament(tournamentId: number) : Promise<Result<void>> {
+
+    try {
+
+      const teams = await this.teamRepo.getConfirmedTournamentTeams(tournamentId);
+
+      if (teams.length < 2) {
+        return {
+          success: false,
+          error: "Not enough teams",
+          statusCode: 400
+        };
+      }
+
+      const shuffledTeams = [...teams].sort(() => Math.random() - 0.5);
+
+      for (let i = 0; i < shuffledTeams.length; i += 2) {
+
+        const team1 = shuffledTeams[i];
+        const team2 = shuffledTeams[i + 1];
+
+        if (!team2) {
+          continue;
+        }
+
+        await this.matchRepo.create({
+          tournament_id: tournamentId,
+          team1_id: team1.team_id,
+          team2_id: team2.team_id,
+          scheduled_at: new Date(),
+          result: null,
+          winner_team_id: null,
+          next_match_id: null,
+          next_match_slot: null,
+          status: "scheduled"
+        });
+      }
+
+      return {
+        success: true,
+        data: undefined
+      };
+
+    } catch (err) {
+
+      this.logger.error("MatchService", "generateMatchesForTournament failed",String(err));
+
+      return {
+        success: false,
+        error: "Failed to generate matches",
+        statusCode: 500
+      };
     }
   }
 }

@@ -8,4 +8,5 @@ export interface IMatchService {
   updateMatchResult(matchId: number, adminId: number, dto: UpdateMatchResultDto): Promise<Result<void>>;
   addPlayerToMatch(matchId: number, captainId: number, userId: number, teamId: number, performanceNotes?: string): Promise<Result<void>>;
   removePlayerFromMatch(matchId: number, captainId: number, userId: number): Promise<Result<void>>;
+  generateMatchesForTournament(tournamentId: number): Promise<Result<void>>;
 }

@@ -20,6 +20,8 @@ export class MatchController {
 
     this.router.patch("/:id/result", authenticate, authorize(UserRole.ADMIN), this.updateMatchResult.bind(this));
 
+    this.router.post("/tournament/:tournamentId/generate", authenticate, authorize(UserRole.ADMIN), this.generateMatches.bind(this));
+
     this.router.post("/:id/players", authenticate, this.addPlayerToMatch.bind(this));
     this.router.delete("/:id/players/:userId", authenticate, this.removePlayerFromMatch.bind(this));
   }
@@ -104,6 +106,22 @@ export class MatchController {
       req.user!.id,
       userId
     );
+
+    res.status(result.success ? 200 : (result.statusCode || 500)).json(result);
+  }
+
+  private async generateMatches(req: Request, res: Response): Promise<void> {
+
+    const tournamentId = parseInt(req.params.tournamentId as string, 10);
+
+    if (isNaN(tournamentId)) {
+
+      res.status(400).json({success: false, message: "Invalid tournament ID"});
+
+      return;
+    }
+ 
+    const result = await this.matchService.generateMatchesForTournament(tournamentId);
 
     res.status(result.success ? 200 : (result.statusCode || 500)).json(result);
   }
