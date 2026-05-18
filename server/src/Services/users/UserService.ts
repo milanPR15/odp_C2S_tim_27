@@ -26,6 +26,17 @@ export class UserService implements IUserService {
     return new UserDto(u.id, u.gamer_tag, u.email, u.role, u.isActive);
   }
 
+  async getCurrentProfile(userId: number): Promise<UserDto | null> {
+
+    const user = await this.userRepo.findById(userId);
+
+    if (user.id === 0) {
+      return null;
+    }
+
+    return new UserDto(user.id, user.gamer_tag, user.email, user.role, user.isActive);
+  }
+
   async deactivate(id: number): Promise<boolean> {
     return this.userRepo.deactivate(id);
   }
@@ -36,6 +47,32 @@ export class UserService implements IUserService {
       this.logger.warn("UserService", `updateProfile validation failed: ${validation.message}`);
       return { success: false, error: validation.message!, statusCode: 400 };
     }
+
+    if (dto.email) {
+
+    const existingUser = await this.userRepo.findByEmail(dto.email);
+
+    if (existingUser.id !== 0 && existingUser.id !== userId) {
+      return {
+        success: false,
+        error: "Email already in use",
+        statusCode: 400
+      };
+    }
+  }
+
+  if (dto.gamer_tag) {
+
+    const existingUser = await this.userRepo.findByUsername(dto.gamer_tag);
+
+    if (existingUser.id !== 0 && existingUser.id !== userId) {
+      return {
+        success: false,
+        error: "Gamer tag already in use",
+        statusCode: 400
+      };
+    }
+  }
 
     let hashedPassword: string | undefined;
     if (dto.password) {

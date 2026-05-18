@@ -8,6 +8,7 @@ export class UserController {
 
   constructor(private readonly userService: IUserService) {
     this.router.put("/users/profile", authenticate, this.updateProfile);
+    this.router.get("/users/profile", authenticate, this.getCurrentProfile);
   }
 
   updateProfile = async (req: Request, res: Response) => {
@@ -30,6 +31,22 @@ export class UserController {
 
     res.status(200).json(result);
   };
+
+  getCurrentProfile = async (req: Request, res: Response) => {
+
+  const userId = (req.user as { id: number }).id;
+
+  const user = await this.userService.getCurrentProfile(userId);
+
+  if (!user) {
+
+    res.status(404).json({success: false, error: "User not found"});
+
+    return;
+  }
+
+  res.status(200).json({success: true, data: user});
+};
 
   getRouter() {
     return this.router;

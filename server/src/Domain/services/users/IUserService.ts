@@ -5,6 +5,7 @@ import { Result } from "../../types/Result";
 export interface IUserService {
   getAll(): Promise<UserDto[]>;
   getById(id: number): Promise<UserDto | null>;
+  getCurrentProfile(userId: number): Promise<UserDto | null>;
   deactivate(id: number): Promise<boolean>;
   updateProfile(userId: number, dto: UpdateProfileDto): Promise<Result<{ message: string }>>;
 }
