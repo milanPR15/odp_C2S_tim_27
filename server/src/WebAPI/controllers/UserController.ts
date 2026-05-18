@@ -11,7 +11,7 @@ export class UserController {
   }
 
   updateProfile = async (req: Request, res: Response) => {
-    const userId = (req as any).user.id;
+    const userId = (req.user as { id: number }).id;
 
     const dto = new UpdateProfileDto(
       req.body.gamer_tag,
