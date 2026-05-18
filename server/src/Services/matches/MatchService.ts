@@ -24,8 +24,8 @@ export class MatchService implements IMatchService {
         m.result
       ));
       return { success: true, data: dtos };
-    } catch (err: any) {
-      this.logger.error("MatchService", "getMatchesByTournament failed", err);
+    } catch (err) {
+      this.logger.error("MatchService", "getMatchesByTournament failed", String(err));
       return { success: false, error: "Failed to fetch matches", statusCode: 500 };
     }
   }
@@ -46,8 +46,8 @@ export class MatchService implements IMatchService {
         match.result
       );
       return { success: true, data: dto };
-    } catch (err: any) {
-      this.logger.error("MatchService", "getMatchById failed", err);
+    } catch (err) {
+      this.logger.error("MatchService", "getMatchById failed", String(err));
       return { success: false, error: "Failed to fetch match", statusCode: 500 };
     }
   }
@@ -58,15 +58,48 @@ export class MatchService implements IMatchService {
     }
 
     try {
-      const success = await this.matchRepo.updateResult(matchId, dto.result);
+      
+    const match = await this.matchRepo.findById(matchId);
+
+      if (!match) {
+        return {
+          success: false,
+          error: "Match not found",
+          statusCode: 404
+        };
+      }
+
+      const parts = dto.result.split(':');
+
+      const team1Score = Number(parts[0]);
+      const team2Score = Number(parts[1]);
+
+      let winnerTeamId: number;
+
+      if (team1Score > team2Score) {
+        winnerTeamId = match.team1_id;
+      } else {
+        winnerTeamId = match.team2_id;
+      }
+
+      const success = await this.matchRepo.updateResult(matchId, dto.result, winnerTeamId);
+
+      if (success && match.next_match_id && match.next_match_slot) {
+        await this.matchRepo.advanceWinnerToNextMatch(
+          match.next_match_id,
+          match.next_match_slot,
+          winnerTeamId
+        );
+      }
+
       if (!success) {
         return { success: false, error: "Match not found or could not be updated", statusCode: 404 };
       }
 
       this.logger.info("MatchService", `Admin ${adminId} updated result for match ${matchId} to ${dto.result}`);
       return { success: true, data: undefined };
-    } catch (err: any) {
-      this.logger.error("MatchService", "updateMatchResult failed", err);
+    } catch (err) {
+      this.logger.error("MatchService", "updateMatchResult failed", String(err));
       return { success: false, error: "Failed to update match result", statusCode: 500 };
     }
   }
@@ -98,8 +131,8 @@ export class MatchService implements IMatchService {
 
       this.logger.info("MatchService", `Player ${userId} added to match ${matchId} by captain ${captainId}`);
       return { success: true, data: undefined };
-    } catch (err: any) {
-      this.logger.error("MatchService", "addPlayerToMatch failed", err);
+    } catch (err) {
+      this.logger.error("MatchService", "addPlayerToMatch failed", String(err));
       return { success: false, error: "Failed to add player to match", statusCode: 500 };
     }
   }
@@ -126,8 +159,8 @@ export class MatchService implements IMatchService {
 
       this.logger.info("MatchService", `Player ${userId} removed from match ${matchId} by captain ${captainId}`);
       return { success: true, data: undefined };
-    } catch (err: any) {
-      this.logger.error("MatchService", "removePlayerFromMatch failed", err);
+    } catch (err) {
+      this.logger.error("MatchService", "removePlayerFromMatch failed", String(err));
       return { success: false, error: "Failed to remove player from match", statusCode: 500 };
     }
   }

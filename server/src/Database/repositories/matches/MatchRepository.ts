@@ -1,9 +1,10 @@
 import { IMatchRepository } from "../../../Domain/repositories/matches/IMatchRepository";
-import { Match } from "../../../Domain/models/Match";
+import { Match, MatchRow } from "../../../Domain/models/Match";
 import { MatchPlayer } from "../../../Domain/models/MatchPlayers";
 import { DbManager } from "../../connection/DbConnectionPool";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
 import { Result } from "../../../Domain/types/Result";
+import { ResultSetHeader } from "mysql2/promise";
 
 export class MatchRepository implements IMatchRepository {
 
@@ -22,7 +23,7 @@ export class MatchRepository implements IMatchRepository {
         "SELECT * FROM matches WHERE tournament_id = ? ORDER BY scheduled_at",
         [tournamentId]
       );
-      return (rows as any).map((row: any) => Match.fromDB(row));
+      return (rows as MatchRow[]).map((row) => Match.fromDB(row));
     } finally {
       conn.release();
     }
@@ -38,7 +39,7 @@ export class MatchRepository implements IMatchRepository {
         "SELECT * FROM matches WHERE match_id = ?",
         [matchId]
       );
-      const row = (rows as any)[0];
+      const row = (rows as MatchRow[])[0];
       return row ? Match.fromDB(row) : null;
     } finally {
       conn.release();
@@ -57,26 +58,39 @@ export class MatchRepository implements IMatchRepository {
         [match.tournament_id, match.team1_id, match.team2_id, match.scheduled_at, match.result]
       );
 
-      const matchId = (result as any).insertId;
+      const matchId = (result as ResultSetHeader).insertId;
       const [rows] = await conn.execute("SELECT * FROM matches WHERE match_id = ?", [matchId]);
-      return Match.fromDB((rows as any)[0]);
+      return Match.fromDB((rows as MatchRow[])[0]);
     } finally {
       conn.release();
     }
   }
 
-  async updateResult(matchId: number, result: string): Promise<boolean> {
+  async updateResult(matchId: number, result: string, winnerTeamId: number): Promise<boolean> {
+  
     const connResult = await this.db.getWriteConnection();
-    if (!connResult) return false;
+
+    if (!connResult) {
+      return false;
+    }
+
     const { conn } = connResult;
 
     try {
+
       const [resultSet] = await conn.execute(
-        "UPDATE matches SET result = ? WHERE match_id = ?",
-        [result, matchId]
+        `UPDATE matches
+        SET result = ?,
+            winner_team_id = ?,
+            status = 'completed'
+        WHERE match_id = ?`,
+        [result, winnerTeamId, matchId]
       );
-      return (resultSet as any).affectedRows > 0;
+
+      return (resultSet as ResultSetHeader).affectedRows > 0;
+
     } finally {
+
       conn.release();
     }
   }
@@ -108,7 +122,7 @@ export class MatchRepository implements IMatchRepository {
         "DELETE FROM match_players WHERE match_id = ? AND user_id = ?",
         [matchId, userId]
       );
-      return (result as any).affectedRows > 0;
+      return (result as ResultSetHeader).affectedRows > 0;
     } finally {
       conn.release();
     }
@@ -124,7 +138,7 @@ export class MatchRepository implements IMatchRepository {
         "SELECT * FROM match_players WHERE match_id = ?",
         [matchId]
       );
-      return (rows as any).map((row: any) => MatchPlayer.fromDB(row));
+      return (rows as MatchPlayer[]).map((row) => MatchPlayer.fromDB(row));
     } finally {
       conn.release();
     }
@@ -145,7 +159,7 @@ export class MatchRepository implements IMatchRepository {
         LIMIT 1
       `, [matchId, captainId]);
 
-      return (rows as any).length > 0;
+      return (rows as ResultSetHeader[]).length > 0;
     } finally {
       conn.release();
     }
@@ -163,10 +177,43 @@ export class MatchRepository implements IMatchRepository {
         LIMIT 1
       `, [matchId, userId]);
 
-      return (rows as any).length > 0;
+      return (rows as ResultSetHeader[]).length > 0;
     } finally {
       conn.release();
     }
   }
   
+  async advanceWinnerToNextMatch(nextMatchId: number, slot: 'team1' | 'team2', winnerTeamId: number): Promise<boolean> {
+
+    const dbConn = await this.db.getWriteConnection();
+
+    if (!dbConn) {
+        return false;
+    }
+
+    const { conn } = dbConn;
+
+    try {
+
+        const column = slot === 'team1' ? 'team1_id' : 'team2_id';
+
+        const [result] = await conn.execute(
+            `UPDATE matches
+             SET ${column} = ?
+             WHERE match_id = ?`,
+            [winnerTeamId, nextMatchId]
+        );
+
+        return (result as ResultSetHeader).affectedRows > 0;
+
+    } catch (err) {
+
+        console.error(err);
+        return false;
+
+    } finally {
+
+        conn.release();
+    }
+}
 }
