@@ -1,7 +1,7 @@
 import { RowDataPacket, ResultSetHeader } from "mysql2";
 import { ITeamRepository } from "../../../Domain/repositories/teams/ITeamRepository";
-import { Team } from "../../../Domain/models/Team";
-import { TeamMember } from "../../../Domain/models/TeamMember";
+import { Team, TeamRow } from "../../../Domain/models/Team";
+import { TeamMember, TeamMemberRow } from "../../../Domain/models/TeamMember";
 import { CreateTeamDto } from "../../../Domain/DTOs/teams/CreateTeamDto";
 import { DbManager } from "../../connection/DbConnectionPool";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
@@ -11,7 +11,7 @@ export class TeamRepository implements ITeamRepository {
   public constructor(
     private readonly db: DbManager,
     private readonly logger: ILoggerService
-  ) {}
+  ) {} 
 
   async create(dto: CreateTeamDto, userId: number): Promise<Team> {
     const connResult = await this.db.getWriteConnection();
@@ -34,7 +34,7 @@ export class TeamRepository implements ITeamRepository {
       );
 
       const [rows] = await conn.execute<RowDataPacket[]>("SELECT * FROM team WHERE team_id = ?", [teamId]);
-      return Team.fromDB(rows[0]);
+      return Team.fromDB(rows[0] as TeamRow);
     } catch (err) {
       this.logger.error("TeamRepository", "create failed", err);
       return new Team();
@@ -51,7 +51,7 @@ export class TeamRepository implements ITeamRepository {
     try {
       const [rows] = await conn.execute<RowDataPacket[]>("SELECT * FROM team WHERE team_id = ?", [teamId]);
       const row = rows[0];
-      return row ? Team.fromDB(row) : null;
+      return row ? Team.fromDB(row as TeamRow) : null;
     } catch (err) {
       this.logger.error("TeamRepository", "findById failed", err);
       return null;
@@ -72,7 +72,7 @@ export class TeamRepository implements ITeamRepository {
         WHERE tm.user_id = ?
       `, [userId]);
 
-      return rows.map((row) => Team.fromDB(row));
+      return rows.map((row) => Team.fromDB(row as TeamRow));
     } catch (err) {
       this.logger.error("TeamRepository", "findByUserId failed", err);
       return [];
@@ -91,7 +91,7 @@ export class TeamRepository implements ITeamRepository {
         SELECT tm.* FROM team_members tm WHERE tm.team_id = ?
       `, [teamId]);
 
-      return rows.map((row) => TeamMember.fromDB(row));
+      return rows.map((row) => TeamMember.fromDB(row as TeamMemberRow));
     } catch (err) {
       this.logger.error("TeamRepository", "findMembers failed", err);
       return [];

@@ -1,6 +1,6 @@
 import { TeamRole } from "../enums/TeamRole";
 
-interface TeamMemberRow {
+export interface TeamMemberRow {
   id: number;
   team_id: number;
   user_id: number;

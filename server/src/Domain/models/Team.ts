@@ -1,4 +1,4 @@
-interface TeamRow {
+export interface TeamRow {
   team_id: number;
   team_name: string;
   tag: string;
