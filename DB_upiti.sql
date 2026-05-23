@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS tournament_registrations (
   id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   tournament_id  INT UNSIGNED NOT NULL,
   team_id        INT UNSIGNED NOT NULL,
+  selected_player_ids TEXT DEFAULT NULL,
   registered_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
   status         ENUM('pending','confirmed','disqualified') DEFAULT 'pending',
   seed           INT UNSIGNED DEFAULT NULL,

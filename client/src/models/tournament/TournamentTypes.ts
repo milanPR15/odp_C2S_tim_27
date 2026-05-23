@@ -30,3 +30,19 @@ export type UpdateTournamentDto = {
   prize_pool?: number;
   status?: "upcoming" | "ongoing" | "completed";
 };
+
+export type RegisterTournamentTeamDto = {
+  teamId: number;
+  playerIds: number[];
+};
+
+export type TournamentRegistrationDto = {
+  id: number;
+  tournament_id: number;
+  team_id: number;
+  team_name: string;
+  status: "pending" | "confirmed" | "disqualified";
+  seed: number | null;
+  registered_at: string;
+  selected_player_ids: number[];
+};

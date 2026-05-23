@@ -1,6 +1,6 @@
 import axios from "axios";
 import type { ApiResponse, ITournamentAPIService } from "./ITournamentsAPIService";
-import type { CreateTournamentDto, TournamentDto, UpdateTournamentDto } from "../../models/tournament/TournamentTypes";
+import type { CreateTournamentDto, RegisterTournamentTeamDto, TournamentDto, TournamentRegistrationDto, UpdateTournamentDto } from "../../models/tournament/TournamentTypes";
 import { authHeader, handleError } from "../ApiUtils";
 
 const BASE = import.meta.env.VITE_API_URL + "tournaments";
@@ -18,6 +18,14 @@ export const tournamentApi: ITournamentAPIService = {
         return axios.get<ApiResponse<TournamentDto[]>>(`${BASE}/game/${gameId}`, { headers: authHeader() })
             .then(r => r.data).catch(e => handleError(e, "Failed to load tournaments for game"));
     },
+    getRegistrationCount: function (id: number): Promise<ApiResponse<number>> {
+        return axios.get<ApiResponse<number>>(`${BASE}/${id}/registrations/count`, { headers: authHeader() })
+            .then(r => r.data).catch(e => handleError(e, "Failed to load tournament registration count"));
+    },
+    getRegistrations: function (id: number): Promise<ApiResponse<TournamentRegistrationDto[]>> {
+        return axios.get<ApiResponse<TournamentRegistrationDto[]>>(`${BASE}/${id}/registrations`, { headers: authHeader() })
+            .then(r => r.data).catch(e => handleError(e, "Failed to load tournament registrations"));
+    },
     create: function (tournament: CreateTournamentDto): Promise<ApiResponse<TournamentDto>> {
         return axios.post<ApiResponse<TournamentDto>>(BASE, tournament, { headers: authHeader() })
             .then(r => r.data).catch(e => handleError(e, "Failed to create tournament"));
@@ -29,5 +37,13 @@ export const tournamentApi: ITournamentAPIService = {
     delete: function (id: number): Promise<ApiResponse<void>> {
         return axios.delete<ApiResponse<void>>(`${BASE}/${id}`, { headers: authHeader() })
             .then(r => r.data).catch(e => handleError(e, "Failed to delete tournament"));
+    },
+    registerTeam: function (id: number, payload: RegisterTournamentTeamDto): Promise<ApiResponse<void>> {
+        return axios.post<ApiResponse<void>>(`${BASE}/${id}/register`, payload, { headers: authHeader() })
+            .then(r => r.data).catch(e => handleError(e, e.response?.data?.message ?? "Failed to register team"));
+    },
+    confirmRegistration: function (tournamentId: number, registrationId: number): Promise<ApiResponse<void>> {
+        return axios.patch<ApiResponse<void>>(`${BASE}/${tournamentId}/registrations/${registrationId}/confirm`, {}, { headers: authHeader() })
+            .then(r => r.data).catch(e => handleError(e, e.response?.data?.message ?? "Failed to confirm registration"));
     }
 }

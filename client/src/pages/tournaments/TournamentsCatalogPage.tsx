@@ -192,7 +192,7 @@ export default function TournamentsCatalogPage() {
         </div>
       ) : (
         <Table>
-          <TableHead columns={["Name", "Game", "Format", "Status", "Teams", "Entry Deadline", "Prize Pool"]} />
+          <TableHead columns={["Name", "Game", "Format", "Status", "Teams", "Entry Deadline", "Prize Pool", "Details"]} />
           <tbody>
             {filteredTournaments.map((tournament) => (
               <tr key={tournament.tournament_id} className="border-b last:border-b-0 border-white/6">
@@ -203,6 +203,14 @@ export default function TournamentsCatalogPage() {
                 <td className="px-5 py-4 text-white/70">{tournament.max_teams}</td>
                 <td className="px-5 py-4 text-white/70">{formatDateTime(tournament.entry_deadline)}</td>
                 <td className="px-5 py-4 text-white/80">{formatMoney(tournament.prize_pool)}</td>
+                <td className="px-5 py-4">
+                  <Link
+                    to={`/tournaments/${tournament.tournament_id}`}
+                    className="inline-flex items-center gap-2 rounded-lg border border-cyan-300/40 bg-cyan-300/10 px-3 py-1.5 text-xs font-medium uppercase tracking-wide text-cyan-100 transition hover:bg-cyan-300/20"
+                  >
+                    View Matches
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>

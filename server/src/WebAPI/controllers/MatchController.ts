@@ -15,15 +15,15 @@ export class MatchController {
 
   private setupRoutes(): void {
 
-    this.router.get("/tournament/:tournamentId", this.getMatchesByTournament.bind(this));
-    this.router.get("/:id", this.getMatchById.bind(this));
+    this.router.get("/matches/tournament/:tournamentId", this.getMatchesByTournament.bind(this));
+    this.router.get("/matches/:id", this.getMatchById.bind(this));
 
-    this.router.patch("/:id/result", authenticate, authorize(UserRole.ADMIN), this.updateMatchResult.bind(this));
+    this.router.patch("/matches/:id/result", authenticate, authorize(UserRole.ADMIN), this.updateMatchResult.bind(this));
 
-    this.router.post("/tournament/:tournamentId/generate", authenticate, authorize(UserRole.ADMIN), this.generateMatches.bind(this));
+    this.router.post("/matches/tournament/:tournamentId/generate", authenticate, authorize(UserRole.ADMIN), this.generateMatches.bind(this));
 
-    this.router.post("/:id/players", authenticate, this.addPlayerToMatch.bind(this));
-    this.router.delete("/:id/players/:userId", authenticate, this.removePlayerFromMatch.bind(this));
+    this.router.post("/matches/:id/players", authenticate, this.addPlayerToMatch.bind(this));
+    this.router.delete("/matches/:id/players/:userId", authenticate, this.removePlayerFromMatch.bind(this));
   }
 
   private async getMatchesByTournament(req: Request, res: Response): Promise<void> {
