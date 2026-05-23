@@ -13,6 +13,10 @@ export class TeamRepository implements ITeamRepository {
     private readonly logger: ILoggerService
   ) {}
 
+  private mapTeam(r: RowDataPacket): Team {
+    return new Team(r.team_id, r.team_name, r.tag, r.logo, r.description);
+  }
+
   async create(dto: CreateTeamDto, userId: number): Promise<Team> {
     const connResult = await this.db.getWriteConnection();
     if (!connResult) return new Team();
@@ -196,6 +200,36 @@ export class TeamRepository implements ITeamRepository {
       return false;
     } finally {
       conn.release();
+    }
+  }
+
+  async getConfirmedTournamentTeams(tournamentId: number): Promise<Team[]> {
+
+    const res = await this.db.getReadConnection();
+
+    if (!res) {
+      return [];
+    }
+
+    try {
+
+      const [rows] = await res.conn.execute<RowDataPacket[]>(
+        `
+        SELECT t.*
+        FROM teams t
+        JOIN tournament_registrations tr
+          ON t.team_id = tr.team_id
+        WHERE tr.tournament_id = ?
+          AND tr.status = 'confirmed'
+        `,
+        [tournamentId]
+      );
+
+      return rows.map(r => this.mapTeam(r));
+
+    } finally {
+
+      res.conn.release();
     }
   }
 }

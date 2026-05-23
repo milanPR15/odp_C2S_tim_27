@@ -9,19 +9,21 @@ import { UserRepository }   from "./Database/repositories/users/UserRepository";
 import { TournamentRepository } from "./Database/repositories/tournaments/TournamentRepository";
 import { GamesRepository } from "./Database/repositories/games/GamesRepository";
 import { AuditLogRepository } from "./Database/repositories/auditLogs/AuditLogRepository";
+import { MatchRepository } from "./Database/repositories/matches/MatchRepository";
 
 import { AuthService }   from "./Services/auth/AuthService";
 import { UserService }   from "./Services/users/UserService";
 import { TournamentService } from "./Services/tournaments/TournamentService";
 import { GameService } from "./Services/games/GamesService";
 import { AuditLogService } from "./Services/auditLogs/AuditLogService";
+import { MatchService } from "./Services/matches/MatchService";
 
 import { AuthController }   from "./WebAPI/controllers/AuthController";
 import { UserController }   from "./WebAPI/controllers/UserController";
 import { TournamentController } from "./WebAPI/controllers/TournamentControler";
 import { GameController } from "./WebAPI/controllers/GamesController";
 import { AuditLogController } from "./WebAPI/controllers/AuditLogController";
-
+import { MatchController } from "./WebAPI/controllers/MatchController";
 import { TeamRepository } from "./Database/repositories/team/TeamRepository";
 import { TeamInvitationRepository } from "./Database/repositories/team_invitations/TeamInvitationRepository";
 import { TeamService } from "./Services/teams/TeamService";
@@ -35,6 +37,7 @@ const userRepo   = new UserRepository(db, logger);
 const tournamentRepo = new TournamentRepository(db, logger);
 const gamesRepo = new GamesRepository(db, logger);
 const auditLogRepo = new AuditLogRepository(db, logger);
+const matchRepo    = new MatchRepository(db, logger);
 const teamRepo = new TeamRepository(db, logger);
 const teamInvitationRepo = new TeamInvitationRepository(db, logger);
 
@@ -45,6 +48,7 @@ const auditLogService = new AuditLogService(auditLogRepo);
 const userService   = new UserService(userRepo, logger, auditLogService);
 const tournamentService = new TournamentService(tournamentRepo, auditLogService);
 const gameService = new GameService(gamesRepo, auditLogService);
+const matchService = new MatchService(matchRepo, teamRepo, logger);
 
 // Express
 const app = express();
@@ -56,6 +60,7 @@ app.use("/api/v1", new UserController(userService).getRouter());
 app.use("/api/v1", new TournamentController(tournamentService).getRouter());
 app.use("/api/v1", new GameController(gameService).getRouter());
 app.use("/api/v1", new AuditLogController(auditLogService).getRouter());
+app.use("/api/v1", new MatchController(matchService).getRouter());
 app.use("/api/v1", new UserController(userService).getRouter());
 app.use("/api/v1", new TeamController(teamService).getRouter());
 export default app;

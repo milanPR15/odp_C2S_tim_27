@@ -1,158 +1,219 @@
-import { RowDataPacket, ResultSetHeader } from "mysql2";
 import { IMatchRepository } from "../../../Domain/repositories/matches/IMatchRepository";
-import { Match } from "../../../Domain/models/Match";
-import { User } from "../../../Domain/models/User";
+import { Match, MatchRow } from "../../../Domain/models/Match";
+import { MatchPlayer } from "../../../Domain/models/MatchPlayers";
 import { DbManager } from "../../connection/DbConnectionPool";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
+import { Result } from "../../../Domain/types/Result";
+import { ResultSetHeader } from "mysql2/promise";
 
 export class MatchRepository implements IMatchRepository {
+
   public constructor(
     private readonly db: DbManager,
-    private readonly logger: ILoggerService,
+    private readonly logger: ILoggerService
   ) {}
 
-  private map(r: RowDataPacket): Match {
-    return new Match(
-      r.match_id,
-      r.tournament_id,
-      r.team1_id,
-      r.team2_id,
-      new Date(r.scheduledAt),
-      new Date(r.createdAt),
-      new Date(r.updatedAt),
-      r.result,
-    );
-  }
+  async findByTournament(tournamentId: number): Promise<Match[]> {
+    const connResult = await this.db.getReadConnection();
+    if (!connResult) return [];
+    const { conn } = connResult;
 
-  async findById(id: number): Promise<Match | null> {
-    const res = await this.db.getReadConnection();
-    if (!res) return null;
     try {
-      const [rows] = await res.conn.execute<RowDataPacket[]>(
-        `SELECT * FROM matches WHERE match_id = ?`, [id]
-      );
-      return rows.length > 0 ? this.map(rows[0]) : null;
-    } finally {
-      res.conn.release();
-    }
-  }
-
-  async findByTournamentId(tournamentId: number): Promise<Match[]> {
-    const res = await this.db.getReadConnection();
-    if (!res) return [];
-    try {
-      const [rows] = await res.conn.execute<RowDataPacket[]>(
-        `SELECT * FROM matches WHERE tournament_id = ? ORDER BY round ASC, scheduledAt ASC`,
+      const [rows] = await conn.execute(
+        "SELECT * FROM matches WHERE tournament_id = ? ORDER BY scheduled_at",
         [tournamentId]
       );
-      return rows.map(r => this.map(r));
+      return (rows as MatchRow[]).map((row) => Match.fromDB(row));
     } finally {
-      res.conn.release();
+      conn.release();
     }
   }
 
-  async updateResult(match_id: number, score: string): Promise<boolean> {
-  const res = await this.db.getWriteConnection();
-  if (!res) return false;
-  try {
-    // Ovde smo izbacili winner_id i status jer ih nemaš u tabeli
-    const [result] = await res.conn.execute<ResultSetHeader>(
-      `UPDATE matches SET result = ? WHERE match_id = ?`,
-      [score, match_id]
-    );
-    return result.affectedRows > 0;
-  } finally {
-    res.conn.release();
-  }
-}
+  async findById(matchId: number): Promise<Match | null> {
+    const connResult = await this.db.getReadConnection();
+    if (!connResult) return null;
+    const { conn } = connResult;
 
-  async addActivePlayer(matchId: number, userId: number, teamId: number, performanceNotes?: string): Promise<void> {
-    const res = await this.db.getWriteConnection();
-    if (!res) return;
     try {
-      await res.conn.execute(
-        `INSERT INTO match_players (match_id, user_id, team_id, performance_notes) VALUES (?, ?, ?, ?)`,
-        [matchId, userId, teamId, performanceNotes ?? null]
-      );
-    } finally {
-      res.conn.release();
-    }
-  }
-
-  async updatePerformanceNotes(matchId: number, userId: number, notes: string): Promise<boolean> {
-    const res = await this.db.getWriteConnection();
-    if (!res) return false;
-    try {
-      const [result] = await res.conn.execute<ResultSetHeader>(
-        `UPDATE match_players SET performance_notes = ? WHERE match_id = ? AND user_id = ?`,
-        [notes, matchId, userId]
-      );
-      return result.affectedRows > 0;
-    } finally {
-      res.conn.release();
-    }
-  }
-
-  async removeActivePlayer(matchId: number, userId: number): Promise<boolean> {
-    const res = await this.db.getWriteConnection();
-    if (!res) return false;
-    try {
-      const [result] = await res.conn.execute<ResultSetHeader>(
-        `DELETE FROM match_players WHERE match_id = ? AND user_id = ?`,
-        [matchId, userId]
-      );
-      return result.affectedRows > 0;
-    } finally {
-      res.conn.release();
-    }
-  }
-
-  async getActivePlayers(matchId: number): Promise<(User & { team_id: number, performance_notes: string | null })[]> {
-    const res = await this.db.getReadConnection();
-    if (!res) return [];
-    try {
-      const [rows] = await res.conn.execute<RowDataPacket[]>(
-        `SELECT u.*, mp.team_id, mp.performance_notes 
-         FROM users u
-         JOIN match_players mp ON u.id = mp.user_id
-         WHERE mp.match_id = ?`,
+      const [rows] = await conn.execute(
+        "SELECT * FROM matches WHERE match_id = ?",
         [matchId]
       );
-      return rows.map(r => ({
-        ...new User(r.id, r.gamer_tag, r.full_name, r.email, r.role, "", r.isActive, r.profile_image, new Date(r.createdAt), new Date(r.updatedAt)),
-        team_id: r.team_id,
-        performance_notes: r.performance_notes
-      }));
+      const row = (rows as MatchRow[])[0];
+      return row ? Match.fromDB(row) : null;
     } finally {
-      res.conn.release();
+      conn.release();
     }
   }
 
-  async bulkCreateMatches(matches: Partial<Match>[]): Promise<void> {
-  const res = await this.db.getWriteConnection();
-  if (!res || matches.length === 0) return;
+  async create(match: Omit<Match, 'match_id' | 'createdAt' | 'updatedAt'>): Promise<Match> {
+    const connResult = await this.db.getWriteConnection();
+    if (!connResult) throw new Error("No database connection available");
+    const { conn } = connResult;
 
-  try {
-   
-        const valuesPlaceholder = matches.map(() => `(?, ?, ?, ?)`).join(", ");
-    
-        const query = `INSERT INTO matches (tournament_id, team1_id, team2_id, scheduledAt) 
-                   VALUES ${valuesPlaceholder}`;
-    
-        const params = matches.flatMap(m => [
-            m.tournament_id ?? 0, 
-            m.team1_id ?? null, 
-            m.team2_id ?? null, 
-            m.scheduledAt ?? new Date()
-        ]);
+    try {
+      const [result] = await conn.execute(
+        `INSERT INTO matches (tournament_id, team1_id, team2_id, scheduled_at, result)
+         VALUES (?, ?, ?, ?, ?)`,
+        [match.tournament_id, match.team1_id, match.team2_id, match.scheduled_at, match.result]
+      );
 
-        await res.conn.execute(query, params as (number | null | Date)[]);
+      const matchId = (result as ResultSetHeader).insertId;
+      const [rows] = await conn.execute("SELECT * FROM matches WHERE match_id = ?", [matchId]);
+      return Match.fromDB((rows as MatchRow[])[0]);
+    } finally {
+      conn.release();
+    }
+  }
+
+  async updateResult(matchId: number, result: string, winnerTeamId: number): Promise<boolean> {
+  
+    const connResult = await this.db.getWriteConnection();
+
+    if (!connResult) {
+      return false;
+    }
+
+    const { conn } = connResult;
+
+    try {
+
+      const [resultSet] = await conn.execute(
+        `UPDATE matches
+        SET result = ?,
+            winner_team_id = ?,
+            status = 'completed'
+        WHERE match_id = ?`,
+        [result, winnerTeamId, matchId]
+      );
+
+      return (resultSet as ResultSetHeader).affectedRows > 0;
+
+    } finally {
+
+      conn.release();
+    }
+  }
+
+  async addPlayer(matchId: number, userId: number, teamId: number, performanceNotes?: string): Promise<boolean> {
+    const connResult = await this.db.getWriteConnection();
+    if (!connResult) return false;
+    const { conn } = connResult;
+
+    try {
+      await conn.execute(
+        `INSERT INTO match_players (match_id, user_id, team_id, performance_notes)
+         VALUES (?, ?, ?, ?)`,
+        [matchId, userId, teamId, performanceNotes || null]
+      );
+      return true;
+    } finally {
+      conn.release();
+    }
+  }
+
+  async removePlayer(matchId: number, userId: number): Promise<boolean> {
+    const connResult = await this.db.getWriteConnection();
+    if (!connResult) return false;
+    const { conn } = connResult;
+
+    try {
+      const [result] = await conn.execute(
+        "DELETE FROM match_players WHERE match_id = ? AND user_id = ?",
+        [matchId, userId]
+      );
+      return (result as ResultSetHeader).affectedRows > 0;
+    } finally {
+      conn.release();
+    }
+  }
+
+  async findPlayers(matchId: number): Promise<MatchPlayer[]> {
+    const connResult = await this.db.getReadConnection();
+    if (!connResult) return [];
+    const { conn } = connResult;
+
+    try {
+      const [rows] = await conn.execute(
+        "SELECT * FROM match_players WHERE match_id = ?",
+        [matchId]
+      );
+      return (rows as MatchPlayer[]).map((row) => MatchPlayer.fromDB(row));
+    } finally {
+      conn.release();
+    }
+  }
+  
+    async isCaptainOfTeamInMatch(matchId: number, captainId: number): Promise<boolean> {
+    const connResult = await this.db.getReadConnection();
+    if (!connResult) return false;
+    const { conn } = connResult;
+
+    try {
+      const [rows] = await conn.execute(`
+        SELECT 1 FROM match_players mp
+        JOIN team_members tm ON mp.team_id = tm.team_id
+        WHERE mp.match_id = ? 
+          AND mp.user_id = ? 
+          AND tm.role = 'captain'
+        LIMIT 1
+      `, [matchId, captainId]);
+
+      return (rows as ResultSetHeader[]).length > 0;
+    } finally {
+      conn.release();
+    }
+  }
+
+  async isPlayerInMatchTeam(matchId: number, userId: number): Promise<boolean> {
+    const connResult = await this.db.getReadConnection();
+    if (!connResult) return false;
+    const { conn } = connResult;
+
+    try {
+      const [rows] = await conn.execute(`
+        SELECT 1 FROM match_players 
+        WHERE match_id = ? AND user_id = ?
+        LIMIT 1
+      `, [matchId, userId]);
+
+      return (rows as ResultSetHeader[]).length > 0;
+    } finally {
+      conn.release();
+    }
+  }
+  
+  async advanceWinnerToNextMatch(nextMatchId: number, slot: 'team1' | 'team2', winnerTeamId: number): Promise<boolean> {
+
+    const dbConn = await this.db.getWriteConnection();
+
+    if (!dbConn) {
+        return false;
+    }
+
+    const { conn } = dbConn;
+
+    try {
+
+        const column = slot === 'team1' ? 'team1_id' : 'team2_id';
+
+        const [result] = await conn.execute(
+            `UPDATE matches
+             SET ${column} = ?
+             WHERE match_id = ?`,
+            [winnerTeamId, nextMatchId]
+        );
+
+        return (result as ResultSetHeader).affectedRows > 0;
 
     } catch (err) {
-        this.logger.error("MatchRepository", "bulkCreateMatches failed", err);
-    } finally {
-        res.conn.release();
-    }
- }
 
+        console.error(err);
+        return false;
+
+    } finally {
+
+        conn.release();
+    }
+}
 }
