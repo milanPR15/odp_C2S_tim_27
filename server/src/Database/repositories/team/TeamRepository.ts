@@ -13,6 +13,10 @@ export class TeamRepository implements ITeamRepository {
     private readonly logger: ILoggerService
   ) {}
 
+  private mapTeam(r: RowDataPacket): Team {
+    return new Team(r.team_id, r.team_name, r.tag, r.logo, r.description);
+  }
+
   async create(dto: CreateTeamDto, userId: number): Promise<Team> {
     const connResult = await this.db.getWriteConnection();
     if (!connResult) return new Team();
@@ -221,7 +225,7 @@ export class TeamRepository implements ITeamRepository {
         [tournamentId]
       );
 
-      return rows.map(r => this.map(r));
+      return rows.map(r => this.mapTeam(r));
 
     } finally {
 
