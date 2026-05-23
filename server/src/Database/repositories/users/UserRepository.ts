@@ -1,168 +1,53 @@
-import { RowDataPacket, ResultSetHeader } from "mysql2";
 import { IUserRepository } from "../../../Domain/repositories/users/IUserRepository";
 import { User } from "../../../Domain/models/User";
-import { UserRole } from "../../../Domain/enums/UserRole";
 import { DbManager } from "../../connection/DbConnectionPool";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
 import { UpdateProfileDto } from "../../../Domain/DTOs/account/UpdateProfileDto";
-import { Result } from "../../../Domain/types/Result";
+import { UserReadRepository } from "./UserReadRepository";
+import { UserWriteRepository } from "./UserWriteRepository";
 
 export class UserRepository implements IUserRepository {
-  public constructor(
-    private readonly db: DbManager,
-    private readonly logger: ILoggerService,
-  ) {}
+  private readonly readRepo: UserReadRepository;
+  private readonly writeRepo: UserWriteRepository;
 
-  private map(r: RowDataPacket): User {
-    return new User(r.id, r.gamer_tag, r.full_name, r.email, r.role as UserRole, r.password_hash, r.is_active);
+  constructor(db: DbManager, logger: ILoggerService) {
+    this.readRepo = new UserReadRepository(db, logger);
+    this.writeRepo = new UserWriteRepository(db, logger);
   }
 
   async create(user: User): Promise<User> {
-    const res = await this.db.getWriteConnection();
-    if (!res) return new User();
-    try {
-      const [result] = await res.conn.execute<ResultSetHeader>(
-        `INSERT INTO users (gamer_tag, full_name, email, role, password_hash) VALUES (?, ?, ?, ?, ?)`,
-        [user.gamer_tag, user.full_name, user.email, user.role, user.passwordHash]
-      );
-      if (result.insertId === 0) return new User();
-      return new User(result.insertId, user.gamer_tag, user.full_name, user.email, user.role, user.passwordHash);
-    } catch (err) {
-      this.logger.error("UserRepository", "create failed", err);
-      return new User();
-    } finally { res.conn.release(); }
+    return this.writeRepo.create(user);
   }
 
   async findById(id: number): Promise<User> {
-    const res = await this.db.getReadConnection();
-    if (!res) return new User();
-    try {
-      const [rows] = await res.conn.execute<RowDataPacket[]>(`SELECT * FROM users WHERE id = ?`, [id]);
-      return rows.length > 0 ? this.map(rows[0]) : new User();
-    } catch (err) {
-      this.logger.error("UserRepository", "findById failed", err);
-      return new User();
-    } finally { res.conn.release(); }
+    return this.readRepo.findById(id);
   }
 
   async findByUsername(username: string): Promise<User> {
-    const res = await this.db.getReadConnection();
-    if (!res) return new User();
-    try {
-      const [rows] = await res.conn.execute<RowDataPacket[]>(`SELECT * FROM users WHERE gamer_tag = ?`, [username]);
-      return rows.length > 0 ? this.map(rows[0]) : new User();
-    } catch (err) {
-      this.logger.error("UserRepository", "findByUsername failed", err);
-      return new User();
-    } finally { res.conn.release(); }
+    return this.readRepo.findByUsername(username);
   }
 
   async findByEmail(email: string): Promise<User> {
-    const res = await this.db.getReadConnection();
-    if (!res) return new User();
-    try {
-      const [rows] = await res.conn.execute<RowDataPacket[]>(`SELECT * FROM users WHERE email = ?`, [email]);
-      return rows.length > 0 ? this.map(rows[0]) : new User();
-    } catch (err) {
-      this.logger.error("UserRepository", "findByEmail failed", err);
-      return new User();
-    } finally { res.conn.release(); }
+    return this.readRepo.findByEmail(email);
   }
 
   async findAll(): Promise<User[]> {
-    const res = await this.db.getReadConnection();
-    if (!res) return [];
-    try {
-      const [rows] = await res.conn.execute<RowDataPacket[]>(`SELECT * FROM users ORDER BY id ASC`);
-      return rows.map((r) => this.map(r));
-    } catch (err) {
-      this.logger.error("UserRepository", "findAll failed", err);
-      return [];
-    } finally { res.conn.release(); }
+    return this.readRepo.findAll();
   }
 
   async update(user: User): Promise<boolean> {
-    const res = await this.db.getWriteConnection();
-    if (!res) return false;
-    try {
-      const [result] = await res.conn.execute<ResultSetHeader>(
-        `UPDATE users SET gamer_tag = ?, email = ?, role = ?, is_active = ? WHERE id = ?`,
-        [user.gamer_tag, user.email, user.role, user.isActive, user.id]
-      );
-      return result.affectedRows > 0;
-    } catch (err) {
-      this.logger.error("UserRepository", "update failed", err);
-      return false;
-    } finally { res.conn.release(); }
+    return this.writeRepo.update(user);
   }
 
   async deactivate(id: number): Promise<boolean> {
-    const res = await this.db.getWriteConnection();
-    if (!res) return false;
-    try {
-      const [result] = await res.conn.execute<ResultSetHeader>(
-        `UPDATE users SET is_active = 0 WHERE id = ?`, [id]
-      );
-      return result.affectedRows > 0;
-    } catch (err) {
-      this.logger.error("UserRepository", "deactivate failed", err);
-      return false;
-    } finally { res.conn.release(); }
+    return this.writeRepo.deactivate(id);
   }
 
   async exists(id: number): Promise<boolean> {
-    const res = await this.db.getReadConnection();
-    if (!res) return false;
-    try {
-      const [rows] = await res.conn.execute<RowDataPacket[]>(
-        `SELECT COUNT(*) as cnt FROM users WHERE id = ?`, [id]
-      );
-      return (rows[0]?.cnt ?? 0) > 0;
-    } catch (err) {
-      this.logger.error("UserRepository", "exists failed", err);
-      return false;
-    } finally { res.conn.release(); }
+    return this.readRepo.exists(id);
   }
 
   async updateProfile(userId: number, dto: UpdateProfileDto): Promise<boolean> {
-    const connResult = await this.db.getWriteConnection();
-    if (!connResult) {
-      this.logger.error("UserRepository", "updateProfile - nema konekcije");
-      return false;
-    }
-    const { conn } = connResult;
-
-    try {
-      const [result] = await conn.execute<ResultSetHeader>(
-        `UPDATE users 
-         SET 
-           gamer_tag     = COALESCE(?, gamer_tag),
-           full_name     = COALESCE(?, full_name),
-           email         = COALESCE(?, email),
-           password_hash = COALESCE(?, password_hash),
-           profile_image = COALESCE(?, profile_image),
-           updatedAt     = NOW()
-         WHERE id = ?`,
-        [
-          dto.gamer_tag ?? null,
-          dto.full_name ?? null,
-          dto.email ?? null,
-          dto.password ?? null,
-          dto.profile_image ?? null,
-          userId
-        ]
-      );
-
-      const success = result.affectedRows > 0;
-      if (success) {
-        this.logger.info("UserRepository", `Profil korisnika ${userId} uspešno ažuriran`);
-      }
-      return success;
-    } catch (err) {
-      this.logger.error("UserRepository", "updateProfile failed", err);
-      return false;
-    } finally {
-      conn.release();
-    }
+    return this.writeRepo.updateProfile(userId, dto);
   }
 }
