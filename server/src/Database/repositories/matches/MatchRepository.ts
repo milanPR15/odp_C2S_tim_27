@@ -146,7 +146,7 @@ export class MatchRepository implements IMatchRepository {
             m.scheduledAt ?? new Date()
         ]);
 
-        await res.conn.execute(query, params as any[]);
+        await res.conn.execute(query, params as (number | null | Date)[]);
 
     } catch (err) {
         this.logger.error("MatchRepository", "bulkCreateMatches failed", err);
