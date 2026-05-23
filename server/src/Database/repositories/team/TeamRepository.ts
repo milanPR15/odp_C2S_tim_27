@@ -59,4 +59,8 @@ export class TeamRepository implements ITeamRepository {
   async getConfirmedTournamentTeams(tournamentId: number): Promise<Team[]> {
     return this.readRepo.getConfirmedTournamentTeams(tournamentId);
   }
+
+  async getRegisteredTournamentTeams(tournamentId: number): Promise<Team[]> {
+    return this.readRepo.getRegisteredTournamentTeams(tournamentId);
+  }
 }

@@ -168,10 +168,8 @@ export class MatchService implements IMatchService {
   }
 
   async generateMatchesForTournament(tournamentId: number) : Promise<Result<void>> {
-
     try {
-
-      const teams = await this.teamRepo.getConfirmedTournamentTeams(tournamentId);
+      const teams = await this.teamRepo.getRegisteredTournamentTeams(tournamentId);
 
       if (teams.length < 2) {
         return {

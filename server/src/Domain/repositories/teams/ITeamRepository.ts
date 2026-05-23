@@ -14,4 +14,5 @@ export interface ITeamRepository {
   removeMember(teamId: number, userId: number): Promise<boolean>;
   changeCaptain(teamId: number, newCaptainId: number): Promise<boolean>;
   isUserInTeam(userId: number, teamId: number): Promise<boolean>;
+  getRegisteredTournamentTeams(tournamentId: number): Promise<Team[]>;
 }

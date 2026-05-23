@@ -110,4 +110,25 @@ export class TeamReadRepository {
     }
   }
 
+  async getRegisteredTournamentTeams(tournamentId: number): Promise<Team[]> {
+    const res = await this.db.getReadConnection();
+    if (!res) return [];
+
+    try {
+      const [rows] = await res.conn.execute<RowDataPacket[]>(
+        `
+        SELECT DISTINCT t.*
+        FROM teams t
+        JOIN tournament_registrations tr
+          ON t.team_id = tr.team_id
+        WHERE tr.tournament_id = ?
+        `,
+        [tournamentId]
+      );
+      return rows.map(r => TeamMapper.fromRow(r));
+    } finally {
+      res.conn.release();
+    }
+  }
+
 }
