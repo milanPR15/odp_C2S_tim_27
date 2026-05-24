@@ -4,8 +4,9 @@ import { Team } from "../../../Domain/models/Team";
 import { TeamMember } from "../../../Domain/models/TeamMember";
 import { RowDataPacket } from "mysql2";
 import { TeamMapper } from "./TeamMapper";
+import { ITeamReadRepository } from "../../../Domain/repositories/teams/ITeamReadRepository";
 
-export class TeamReadRepository {
+export class TeamReadRepository implements ITeamReadRepository {
   constructor(
     private readonly db: DbManager,
     private readonly logger: ILoggerService

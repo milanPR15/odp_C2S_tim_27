@@ -2,8 +2,9 @@ import { DbManager } from "../../connection/DbConnectionPool";
 import { Game } from "../../../Domain/models/Game";
 import { ResultSetHeader } from "mysql2";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
+import { IGamesWriteRepository } from "../../../Domain/repositories/games/IGamesWriteRepository";
 
-export class GameWriteRepository {
+export class GameWriteRepository implements IGamesWriteRepository{
   constructor(private readonly db: DbManager, private readonly logger: ILoggerService) {}
 
   async create(game: Game): Promise<Game | null> {

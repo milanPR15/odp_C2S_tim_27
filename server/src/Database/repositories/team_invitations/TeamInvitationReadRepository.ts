@@ -4,8 +4,9 @@ import { TeamInvitation } from "../../../Domain/models/TeamInvitation";
 import { InvitationStatus } from "../../../Domain/enums/InvitationStatus";
 import { RowDataPacket } from "mysql2";
 import { TeamInvitationMapper } from "./TeamInvitationMapper";
+import { ITeamInvitationReadRepository } from "../../../Domain/repositories/team_invitations/ITeamInvitationReadRepository";
 
-export class TeamInvitationReadRepository {
+export class TeamInvitationReadRepository implements ITeamInvitationReadRepository{
   constructor(
     private readonly db: DbManager,
     private readonly logger: ILoggerService

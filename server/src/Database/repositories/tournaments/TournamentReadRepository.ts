@@ -3,8 +3,9 @@ import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
 import { Tournament } from "../../../Domain/models/Tournament";
 import { RowDataPacket } from "mysql2";
 import { TournamentMapper } from "./TournamentMapper";
+import { ITournamentReadRepository } from "../../../Domain/repositories/tournaments/ITournamentReadRepository";
 
-export class TournamentReadRepository {
+export class TournamentReadRepository implements ITournamentReadRepository {
   constructor(
     private readonly db: DbManager,
     private readonly logger: ILoggerService

@@ -2,8 +2,9 @@ import { DbManager } from "../../connection/DbConnectionPool";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
 import { Tournament } from "../../../Domain/models/Tournament";
 import { ResultSetHeader } from "mysql2/promise";
+import { ITournamentWriteRepository } from "../../../Domain/repositories/tournaments/ITournamentWriteRepository";
 
-export class TournamentWriteRepository {
+export class TournamentWriteRepository implements ITournamentWriteRepository{
   constructor(
     private readonly db: DbManager,
     private readonly logger: ILoggerService

@@ -4,9 +4,10 @@ import { Team } from "../../../Domain/models/Team";
 import { CreateTeamDto } from "../../../Domain/DTOs/teams/CreateTeamDto";
 import { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { TeamMapper } from "./TeamMapper";
+import { ITeamWriteRepository } from "../../../Domain/repositories/teams/ITeamWriteRepository";
 
 
-export class TeamWriteRepository {
+export class TeamWriteRepository implements ITeamWriteRepository{
   constructor(
     private readonly db: DbManager,
     private readonly logger: ILoggerService

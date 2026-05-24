@@ -4,8 +4,10 @@ import { AuditLog } from "../../../Domain/models/AuditLog";
 import { AuditMapper } from "./AuditMapper";
 import { RowDataPacket } from "mysql2";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
+import { IAuditLogRepository } from "../../../Domain/repositories/auditLogs/IAuditLogRepository";
+import { IAuditReadRepository } from "../../../Domain/repositories/audit/IAuditReadRepository";
 
-export class AuditReadRepository {
+export class AuditReadRepository implements IAuditReadRepository{
   constructor(
     private readonly db: DbManager,
     private readonly logger: ILoggerService
