@@ -1,8 +1,9 @@
 import { DbManager } from "../../connection/DbConnectionPool";
 import { AuditLog } from "../../../Domain/models/AuditLog";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
+import { IAuditWriteRepository } from "../../../Domain/repositories/audit/IAuditWriteRepository";
 
-export class AuditWriteRepository {
+export class AuditWriteRepository implements IAuditWriteRepository{
   constructor(
     private readonly db: DbManager,
     private readonly logger: ILoggerService

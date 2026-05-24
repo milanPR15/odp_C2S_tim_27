@@ -3,8 +3,9 @@ import { Game } from "../../../Domain/models/Game";
 import { GamesMapper } from "./GamesMapper";
 import { RowDataPacket } from "mysql2";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
+import { IGamesReadRepository } from "../../../Domain/repositories/games/IGamesReadRepository";
 
-export class GameReadRepository {
+export class GameReadRepository implements IGamesReadRepository{
   constructor(private readonly db: DbManager, private readonly logger: ILoggerService) {}
 
   async getById(id: number): Promise<Game | null> {

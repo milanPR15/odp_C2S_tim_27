@@ -4,8 +4,9 @@ import { TeamInvitation } from "../../../Domain/models/TeamInvitation";
 import { InvitationStatus } from "../../../Domain/enums/InvitationStatus";
 import { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { TeamInvitationMapper } from "./TeamInvitationMapper";
+import { ITeamInvitationWriteRepository } from "../../../Domain/repositories/team_invitations/ITeamInvitationWriteRepository";
 
-export class TeamInvitationWriteRepository {
+export class TeamInvitationWriteRepository implements ITeamInvitationWriteRepository{
   constructor(
     private readonly db: DbManager,
     private readonly logger: ILoggerService

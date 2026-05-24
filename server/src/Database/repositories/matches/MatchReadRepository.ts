@@ -3,8 +3,9 @@ import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
 import { Match, MatchRow } from "../../../Domain/models/Match";
 import { MatchPlayer } from "../../../Domain/models/MatchPlayers";
 import { ResultSetHeader } from "mysql2";
+import { IMatchReadRepository } from "../../../Domain/repositories/matches/IMatchReadRepository";
 
-export class MatchReadRepository {
+export class MatchReadRepository implements IMatchReadRepository{
   constructor(private readonly db: DbManager, 
     private readonly logger: ILoggerService
 ) {}

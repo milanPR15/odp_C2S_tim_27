@@ -3,8 +3,9 @@ import { AuditLog } from "../../../Domain/models/AuditLog";
 import { AuditLogMapper } from "./AuditLogMapper";
 import { RowDataPacket } from "mysql2";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
+import { IAuditLogReadRepository } from "../../../Domain/repositories/auditLogs/IAuditLogReadRepository";
 
-export class AuditLogReadRepository {
+export class AuditLogReadRepository implements IAuditLogReadRepository{
   constructor(private readonly db: DbManager, private readonly logger: ILoggerService) {}
 
   async getAll(): Promise<AuditLog[]> {

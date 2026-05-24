@@ -2,8 +2,9 @@ import { DbManager } from "../../connection/DbConnectionPool";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
 import { Match, MatchRow } from "../../../Domain/models/Match";
 import { ResultSetHeader } from "mysql2/promise";
+import { IMatchWriteRepository } from "../../../Domain/repositories/matches/IMatchWriteRepository";
 
-export class MatchWriteRepository {
+export class MatchWriteRepository implements IMatchWriteRepository{
   constructor(private readonly db: DbManager, 
     private readonly logger: ILoggerService
 ) {}

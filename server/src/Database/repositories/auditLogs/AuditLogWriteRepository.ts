@@ -1,8 +1,9 @@
 import { DbManager } from "../../connection/DbConnectionPool";
 import { AuditLog } from "../../../Domain/models/AuditLog";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
+import { IAuditLogWriteRepository } from "../../../Domain/repositories/auditLogs/IAuditLogWriteRepository";
 
-export class AuditLogWriteRepository {
+export class AuditLogWriteRepository  implements IAuditLogWriteRepository{
   constructor(private readonly db: DbManager, private readonly logger: ILoggerService) {}
 
   async create(log: Omit<AuditLog, "id" | "created_at">): Promise<void> {

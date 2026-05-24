@@ -3,8 +3,9 @@ import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
 import { User } from "../../../Domain/models/User";
 import { RowDataPacket } from "mysql2/promise";
 import { UserMapper } from "./UserMapper";
+import { IUserReadRepository } from "../../../Domain/repositories/users/IUserReadRepository";
 
-export class UserReadRepository {
+export class UserReadRepository  implements IUserReadRepository{
   constructor(
     private readonly db: DbManager,
     private readonly logger: ILoggerService
