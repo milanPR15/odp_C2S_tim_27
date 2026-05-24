@@ -1,11 +1,16 @@
 import { AuditLogDto } from "../../Domain/DTOs/auditLogs/AuditLogDto";
 import { AuditLog } from "../../Domain/models/AuditLog";
-import { IAuditLogRepository } from "../../Domain/repositories/auditLogs/IAuditLogRepository";
+import { IAuditLogWriteRepository } from "../../Domain/repositories/auditLogs/IAuditLogWriteRepository";
+import { IAuditLogReadRepository } from "../../Domain/repositories/auditLogs/IAuditLogReadRepository";
 import { IAuditLogService } from "../../Domain/services/auditLogs/IAuditLogService";
 import { Result } from "../../Domain/types/Result";
 
 export class AuditLogService implements IAuditLogService {
-    public constructor(private readonly auditLogRepository: IAuditLogRepository) {}
+    public constructor(
+        private readonly auditLogWriteRepository: IAuditLogWriteRepository,
+        private readonly auditLogReadRepository: IAuditLogReadRepository
+    ) {}
+
 
     private toDto(log: AuditLog): AuditLogDto {
         return new AuditLogDto(
@@ -22,7 +27,7 @@ export class AuditLogService implements IAuditLogService {
 
     async getAll(): Promise<Result<AuditLogDto[]>> {
         try {
-            const logs = await this.auditLogRepository.getAll();
+            const logs = await this.auditLogReadRepository.getAll();
             return { success: true, data: logs.map(this.toDto) };
         } catch (error) {
             return { success: false, statusCode: 500, error: "Failed to retrieve audit logs from database." };
@@ -31,7 +36,7 @@ export class AuditLogService implements IAuditLogService {
 
     async log(user_id: number, action: string, entity: string, entity_id: number, meta: string | null = null, ip_address: string | null = null): Promise<void> {
         try {
-            await this.auditLogRepository.create({
+            await this.auditLogWriteRepository.create({
                 user_id,
                 action,
                 entity,
@@ -40,7 +45,6 @@ export class AuditLogService implements IAuditLogService {
                 ip_address
             });
         } catch (error) {
-            // Logs might fail quietly to not interrupt main flow
             console.error("Failed to log activity:", error);
         }
     }

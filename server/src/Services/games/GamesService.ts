@@ -1,14 +1,16 @@
 import { CreateGameDto } from "../../Domain/DTOs/games/CreateGameDto";
 import { GameDto } from "../../Domain/DTOs/games/GameDto";
 import { Game } from "../../Domain/models/Game";
-import { IGamesRepository } from "../../Domain/repositories/games/IGamesRepository";
+import { IGamesReadRepository } from "../../Domain/repositories/games/IGamesReadRepository";
+import { IGamesWriteRepository } from "../../Domain/repositories/games/IGamesWriteRepository";
 import { IGamesService } from "../../Domain/services/games/IGamesService";
 import { IAuditLogService } from "../../Domain/services/auditLogs/IAuditLogService";
 import { Result } from '../../Domain/types/Result';
 
 export class GameService implements IGamesService {
     public constructor(
-        private gamesRepository: IGamesRepository,
+        private gamesReadRepository: IGamesReadRepository,
+        private gamesWriteRepository: IGamesWriteRepository,
         private auditLogService: IAuditLogService
     ){}
 
@@ -26,7 +28,7 @@ export class GameService implements IGamesService {
 
     async getAll(): Promise<Result<GameDto[]>> {
         try {
-            const games = await this.gamesRepository.getAll();
+            const games = await this.gamesReadRepository.getAll();
             return { success: true, data: games.map(this.toGameDto) };
         } catch (error) {
             return { success: false, error: "Failed to retrieve games", statusCode: 500 };
@@ -34,7 +36,7 @@ export class GameService implements IGamesService {
     }
     async getById(id: number): Promise<Result<GameDto | null>> {
         try {
-            const game = await this.gamesRepository.getById(id);
+            const game = await this.gamesReadRepository.getById(id);
             return { success: true, data: game ? this.toGameDto(game) : null };
         } catch (error) {
             return { success: false, error: "Failed to retrieve game", statusCode: 500 };
@@ -42,12 +44,12 @@ export class GameService implements IGamesService {
     }
     async create(game: CreateGameDto, userId: number = 0): Promise<Result<GameDto | null>> {
         try {
-            const existing = await this.gamesRepository.getByName(game.title);
+            const existing = await this.gamesReadRepository.getByName(game.title);
             if (existing) {
                 return { success: false, error: `Game with title '${game.title}' already exists`, statusCode: 409 };
             }
 
-            const created = await this.gamesRepository.create(new Game(
+            const created = await this.gamesWriteRepository.create(new Game(
                 0,
                 game.title,
                 game.genre,
@@ -72,11 +74,11 @@ export class GameService implements IGamesService {
     }
     async update(id: number, game: GameDto, userId: number = 0): Promise<Result<GameDto | null>> {
         try {
-            const existing = await this.gamesRepository.getById(id);
+            const existing = await this.gamesReadRepository.getById(id);
             if (!existing) {
                 return { success: false, error: "Game not found", statusCode: 404 };
             }
-            const success = await this.gamesRepository.update(new Game(
+            const success = await this.gamesWriteRepository.update(new Game(
                 id,
                 game.title,
                 game.genre,
@@ -95,7 +97,7 @@ export class GameService implements IGamesService {
                 JSON.stringify({ title: game.title, genre: game.genre })
             );
 
-            const updated = await this.gamesRepository.getById(id);
+            const updated = await this.gamesReadRepository.getById(id);
             return { success: true, data: updated ? this.toGameDto(updated) : null };
         } catch (error) {
             return { success: false, error: "Failed to update game", statusCode: 500 };
@@ -103,11 +105,11 @@ export class GameService implements IGamesService {
     }
     async delete(id: number, userId: number = 0): Promise<Result<boolean>> {
         try {
-            const existing = await this.gamesRepository.getById(id);
+            const existing = await this.gamesReadRepository.getById(id);
             if (!existing) {
                 return { success: false, error: "Game not found", statusCode: 404 };
             }
-            const result = await this.gamesRepository.delete(id);
+            const result = await this.gamesWriteRepository.delete(id);
             
             if (result) {
                 await this.auditLogService.log(

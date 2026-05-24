@@ -1,7 +1,9 @@
 import { ITeamService } from "../../Domain/services/teams/ITeamService";
-import { ITeamRepository } from "../../Domain/repositories/teams/ITeamRepository";
-import { ITeamInvitationRepository } from "../../Domain/repositories/team_invitations/ITeamInvitationRepository";
-import { IUserRepository } from "../../Domain/repositories/users/IUserRepository";
+import { ITeamReadRepository } from "../../Domain/repositories/teams/ITeamReadRepository";
+import { ITeamWriteRepository } from "../../Domain/repositories/teams/ITeamWriteRepository";
+import { ITeamInvitationReadRepository } from "../../Domain/repositories/team_invitations/ITeamInvitationReadRepository";
+import { ITeamInvitationWriteRepository } from "../../Domain/repositories/team_invitations/ITeamInvitationWriteRepository";
+import { IUserReadRepository } from "../../Domain/repositories/users/IUserReadRepository";
 import { TeamDto } from "../../Domain/DTOs/teams/TeamDto";
 import { CreateTeamDto } from "../../Domain/DTOs/teams/CreateTeamDto";
 import { Team } from "../../Domain/models/Team";
@@ -13,9 +15,11 @@ import { Result } from "../../Domain/types/Result";
 export class TeamService implements ITeamService {
 
   public constructor(
-    private readonly teamRepo: ITeamRepository,
-    private readonly invitationRepo: ITeamInvitationRepository,
-    private readonly userRepo: IUserRepository,
+    private readonly teamReadRepo: ITeamReadRepository,
+    private readonly teamWriteRepo: ITeamWriteRepository,
+    private readonly invitationReadRepo: ITeamInvitationReadRepository,
+    private readonly invitationWriteRepo: ITeamInvitationWriteRepository,
+    private readonly userReadRepo: IUserReadRepository,
     private readonly logger: ILoggerService
   ) {}
 
@@ -24,12 +28,12 @@ export class TeamService implements ITeamService {
       return { success: false, error: "Invalid team data", statusCode: 400 };
     }
 
-    const team = await this.teamRepo.create(dto, userId);
+    const team = await this.teamWriteRepo.create(dto, userId);
     if (!team.team_id) {
        return { success: false, error: "Failed to create team", statusCode: 500 };
     }
 
-    const user = await this.userRepo.findById(userId);
+    const user = await this.userReadRepo.findById(userId);
 
     return { 
       success: true, 
@@ -55,17 +59,17 @@ export class TeamService implements ITeamService {
   }
 
   private async toTeamDto(team: Team): Promise<TeamDto> {
-    const members = await this.teamRepo.findMembers(team.team_id);
+    const members = await this.teamReadRepo.findMembers(team.team_id);
     const captain = members.find(m => m.role === 'captain');
     
     let captainTag = "";
     if (captain) {
-        const user = await this.userRepo.findById(captain.user_id);
+        const user = await this.userReadRepo.findById(captain.user_id);
         if (user) captainTag = user.gamer_tag;
     }
 
     const memberDtos = await Promise.all(members.map(async m => {
-      const u = await this.userRepo.findById(m.user_id);
+      const u = await this.userReadRepo.findById(m.user_id);
       return {
         user_id: m.user_id,
         gamer_tag: u ? u.gamer_tag : "",
@@ -90,7 +94,7 @@ export class TeamService implements ITeamService {
   }
 
   async getTeamById(teamId: number): Promise<Result<TeamDto>> {
-    const team = await this.teamRepo.findById(teamId);
+    const team = await this.teamReadRepo.findById(teamId);
     if (!team) return { success: false, error: "Team not found", statusCode: 404 };
 
     const dto = await this.toTeamDto(team);
@@ -101,7 +105,7 @@ export class TeamService implements ITeamService {
   }
 
   async getMyTeams(userId: number): Promise<Result<TeamDto[]>> {
-    const teams = await this.teamRepo.findByUserId(userId);
+    const teams = await this.teamReadRepo.findByUserId(userId);
     const dtos = await Promise.all(teams.map(team => this.toTeamDto(team)));
     return {
       success: true,
@@ -110,7 +114,7 @@ export class TeamService implements ITeamService {
   }
 
   async updateTeam(teamId: number, userId: number, dto: Partial<CreateTeamDto>): Promise<Result<TeamDto>> {
-    const members = await this.teamRepo.findMembers(teamId);
+    const members = await this.teamReadRepo.findMembers(teamId);
     const isCaptain = members.some(m => m.user_id === userId && m.role === 'captain');
     
     if (!isCaptain) {
@@ -118,14 +122,14 @@ export class TeamService implements ITeamService {
       return { success: false, error: "Unauthorized. You are not the captain of this team.", statusCode: 403 };
     }
 
-    const success = await this.teamRepo.update(teamId, dto as Partial<Team>);
+    const success = await this.teamWriteRepo.update(teamId, dto as Partial<Team>);
     if (!success) return { success: false, error: "Failed to update team", statusCode: 400 };
     
     return this.getTeamById(teamId);
   }
 
   async deleteTeam(teamId: number, userId: number): Promise<Result<boolean>> {
-    const members = await this.teamRepo.findMembers(teamId);
+    const members = await this.teamReadRepo.findMembers(teamId);
     const isCaptain = members.some(m => m.user_id === userId && m.role === 'captain');
     
     if (!isCaptain) {
@@ -133,25 +137,25 @@ export class TeamService implements ITeamService {
       return { success: false, error: "Unauthorized. You are not the captain of this team.", statusCode: 403 };
     }
 
-    const success = await this.teamRepo.delete(teamId);
+    const success = await this.teamWriteRepo.delete(teamId);
     if (!success) return { success: false, error: "Failed to delete team", statusCode: 400 };
     return { success: true, data: true };
   }
 
   async addMember(teamId: number, captainId: number, targetUserId: number): Promise<Result<boolean>> {
-    const members = await this.teamRepo.findMembers(teamId);
+    const members = await this.teamReadRepo.findMembers(teamId);
     const isCaptain = members.some(m => m.user_id === captainId && m.role === 'captain');
     if (!isCaptain) {
       this.logger.warn("TeamService", `User ${captainId} attempted to add member to team ${teamId} without captain rights.`);
       return { success: false, error: "Unauthorized. You are not the captain of this team.", statusCode: 403 };
     }
-    const success = await this.teamRepo.addMember(teamId, targetUserId, 'member');
+    const success = await this.teamWriteRepo.addMember(teamId, targetUserId, 'member');
     if (!success) return { success: false, error: "Failed to add member", statusCode: 400 };
     return { success: true, data: true };
   }
 
   async removeMember(teamId: number, requesterId: number, targetUserId: number): Promise<Result<boolean>> {
-    const members = await this.teamRepo.findMembers(teamId);
+    const members = await this.teamReadRepo.findMembers(teamId);
     const isCaptain = members.some(m => m.user_id === requesterId && m.role === 'captain');
     const isSelfRemoval = requesterId === targetUserId;
 
@@ -160,13 +164,13 @@ export class TeamService implements ITeamService {
       return { success: false, error: "Unauthorized. You are not the captain of this team and cannot remove others.", statusCode: 403 };
     }
 
-    const success = await this.teamRepo.removeMember(teamId, targetUserId);
+    const success = await this.teamWriteRepo.removeMember(teamId, targetUserId);
     if (!success) return { success: false, error: "Failed to remove member", statusCode: 400 };
     return { success: true, data: true };
   }
 
   async transferCaptain(teamId: number, currentCaptainId: number, newCaptainId: number): Promise<Result<boolean>> {
-    const members = await this.teamRepo.findMembers(teamId);
+    const members = await this.teamReadRepo.findMembers(teamId);
     const isCurrentCaptain = members.some(m => m.user_id === currentCaptainId && m.role === 'captain');
 
     if (!isCurrentCaptain) {
@@ -174,21 +178,21 @@ export class TeamService implements ITeamService {
       return { success: false, error: "Unauthorized. You are not the captain of this team.", statusCode: 403 };
     }
 
-    const success = await this.teamRepo.changeCaptain(teamId, newCaptainId);
+    const success = await this.teamWriteRepo.changeCaptain(teamId, newCaptainId);
     if (!success) return { success: false, error: "Failed to transfer captain", statusCode: 400 };
     return { success: true, data: true };
   }
 
   async sendInvite(teamId: number, captainId: number, username: string): Promise<Result<boolean>> {
     // 1. Find user
-    const targetUser = await this.userRepo.findByUsername(username);
+    const targetUser = await this.userReadRepo.findByUsername(username);
     if (!targetUser.id) {
        return { success: false, error: "User not found", statusCode: 404 };
     }
     const targetUserId = targetUser.id;
 
     // 2. Verify captain
-    const members = await this.teamRepo.findMembers(teamId);
+    const members = await this.teamReadRepo.findMembers(teamId);
     if (members.length === 0) {
       return { success: false, error: "Team not found", statusCode: 404 };
     }
@@ -205,13 +209,13 @@ export class TeamService implements ITeamService {
     }
 
     // 4. Check for pending invites
-    const existingInvite = await this.invitationRepo.findByTeamAndUser(teamId, targetUserId);
+    const existingInvite = await this.invitationReadRepo.findByTeamAndUser(teamId, targetUserId);
     if (existingInvite && existingInvite.status === InvitationStatus.PENDING) {
       return { success: false, error: "An invitation is already pending for this user", statusCode: 400 };
     }
 
     // 5. Create invite
-    const invite = await this.invitationRepo.create(teamId, targetUserId);
+    const invite = await this.invitationWriteRepo.create(teamId, targetUserId);
     if (!invite.id) {
        return { success: false, error: "Failed to send invitation", statusCode: 500 };
     }
@@ -221,7 +225,7 @@ export class TeamService implements ITeamService {
 
   async respondToInvite(teamId: number, userId: number, accept: boolean): Promise<Result<boolean>> {
     // 1. Get invite by team and user
-    const invite = await this.invitationRepo.findByTeamAndUser(teamId, userId);
+    const invite = await this.invitationReadRepo.findByTeamAndUser(teamId, userId);
     if (!invite) {
       return { success: false, error: "Pending invitation not found", statusCode: 404 };
     }
@@ -232,14 +236,14 @@ export class TeamService implements ITeamService {
 
     // 2. Update status and conditionally add to team
     const newStatus = accept ? InvitationStatus.ACCEPTED : InvitationStatus.DECLINED;
-    const updated = await this.invitationRepo.updateStatus(invite.id, newStatus);
+    const updated = await this.invitationWriteRepo.updateStatus(invite.id, newStatus);
 
     if (!updated) {
       return { success: false, error: "Failed to update invitation status", statusCode: 500 };
     }
 
     if (accept) {
-      const added = await this.teamRepo.addMember(invite.team_id, userId, 'member');
+      const added = await this.teamWriteRepo.addMember(invite.team_id, userId, 'member');
       if (!added) {
         return { success: false, error: "Failed to add member to team", statusCode: 500 };
       }
@@ -249,12 +253,12 @@ export class TeamService implements ITeamService {
   }
 
   async getMyInvitations(userId: number): Promise<Result<TeamInvitation[]>> {
-    const invitations = await this.invitationRepo.findByUserId(userId);
+    const invitations = await this.invitationReadRepo.findByUserId(userId);
     return { success: true, data: invitations };
   }
 
   async getTeamInvitations(teamId: number, captainId: number): Promise<Result<TeamInvitation[]>> {
-    const members = await this.teamRepo.findMembers(teamId);
+    const members = await this.teamReadRepo.findMembers(teamId);
     if (members.length === 0) return { success: false, error: "Team not found", statusCode: 404 };
 
     const isCaptain = members.some((m) => m.user_id === captainId && m.role === 'captain');
@@ -263,15 +267,15 @@ export class TeamService implements ITeamService {
       return { success: false, error: "Only team captain can view team invitations", statusCode: 403 };
     }
 
-    const invitations = await this.invitationRepo.findByTeamId(teamId);
+    const invitations = await this.invitationReadRepo.findByTeamId(teamId);
     return { success: true, data: invitations };
   }
 
   async cancelInvite(inviteId: number, captainId: number): Promise<Result<boolean>> {
-    const invite = await this.invitationRepo.findById(inviteId);
+    const invite = await this.invitationReadRepo.findById(inviteId);
     if (!invite) return { success: false, error: "Invitation not found", statusCode: 404 };
 
-    const members = await this.teamRepo.findMembers(invite.team_id);
+    const members = await this.teamReadRepo.findMembers(invite.team_id);
     const isCaptain = members.some((m) => m.user_id === captainId && m.role === 'captain');
     
     if (!isCaptain) {
@@ -279,7 +283,7 @@ export class TeamService implements ITeamService {
       return { success: false, error: "Only team captain can cancel invitations", statusCode: 403 };
     }
 
-    const updated = await this.invitationRepo.updateStatus(inviteId, InvitationStatus.DECLINED);
+    const updated = await this.invitationWriteRepo.updateStatus(inviteId, InvitationStatus.DECLINED);
     if (!updated) return { success: false, error: "Failed to cancel invitation", statusCode: 500 };
 
     return { success: true, data: true };

@@ -1,7 +1,8 @@
 import { IMatchService } from "../../Domain/services/matches/IMatchService";
-import { IMatchRepository } from "../../Domain/repositories/matches/IMatchRepository";
-import { ITeamRepository } from "../../Domain/repositories/teams/ITeamRepository";
-import { ITournamentRepository } from "../../Domain/repositories/tournaments/ITournamentRepository";
+import { IMatchWriteRepository } from "../../Domain/repositories/matches/IMatchWriteRepository";
+import { IMatchReadRepository } from "../../Domain/repositories/matches/IMatchReadRepository";
+import { ITeamReadRepository } from "../../Domain/repositories/teams/ITeamReadRepository";
+import { ITournamentReadRepository } from "../../Domain/repositories/tournaments/ITournamentReadRepository";
 import { MatchDto } from "../../Domain/DTOs/matches/MatchDto";
 import { UpdateMatchResultDto } from "../../Domain/DTOs/matches/UpdateMatchResultDto";
 import { Result } from "../../Domain/types/Result";
@@ -12,9 +13,10 @@ import { Team } from "../../Domain/models/Team";
 export class MatchService implements IMatchService {
 
   public constructor(
-    private readonly matchRepo: IMatchRepository,
-    private readonly teamRepo: ITeamRepository,
-    private readonly tournamentRepo: ITournamentRepository,
+    private readonly matchWriteRepo: IMatchWriteRepository,
+    private readonly matchReadRepo: IMatchReadRepository,
+    private readonly teamReadRepo: ITeamReadRepository,
+    private readonly tournamentReadRepo: ITournamentReadRepository,
     private readonly logger: ILoggerService
   ) {}
 
@@ -23,7 +25,7 @@ export class MatchService implements IMatchService {
   }
 
   private async createScheduledMatch(tournamentId: number, team1Id: number, team2Id: number): Promise<void> {
-    await this.matchRepo.create({
+    await this.matchWriteRepo.create({
       tournament_id: tournamentId,
       team1_id: team1Id,
       team2_id: team2Id,
@@ -78,7 +80,7 @@ export class MatchService implements IMatchService {
 
   async getMatchesByTournament(tournamentId: number): Promise<Result<MatchDto[]>> {
     try {
-      const matches = await this.matchRepo.findByTournament(tournamentId);
+      const matches = await this.matchReadRepo.findByTournament(tournamentId);
       const dtos = matches.map(m => new MatchDto(
         m.match_id,
         m.tournament_id,
@@ -96,7 +98,7 @@ export class MatchService implements IMatchService {
 
   async getMatchById(matchId: number): Promise<Result<MatchDto>> {
     try {
-      const match = await this.matchRepo.findById(matchId);
+      const match = await this.matchReadRepo.findById(matchId);
       if (!match) {
         return { success: false, error: "Match not found", statusCode: 404 };
       }
@@ -123,7 +125,7 @@ export class MatchService implements IMatchService {
 
     try {
       
-    const match = await this.matchRepo.findById(matchId);
+    const match = await this.matchReadRepo.findById(matchId);
 
       if (!match) {
         return {
@@ -146,10 +148,10 @@ export class MatchService implements IMatchService {
         winnerTeamId = match.team2_id;
       }
 
-      const success = await this.matchRepo.updateResult(matchId, dto.result, winnerTeamId);
+      const success = await this.matchWriteRepo.updateResult(matchId, dto.result, winnerTeamId);
 
       if (success && match.next_match_id && match.next_match_slot) {
-        await this.matchRepo.advanceWinnerToNextMatch(
+        await this.matchWriteRepo.advanceWinnerToNextMatch(
           match.next_match_id,
           match.next_match_slot,
           winnerTeamId
@@ -177,17 +179,17 @@ export class MatchService implements IMatchService {
   ): Promise<Result<void>> {
     try {
 
-      const isCaptain = await this.matchRepo.isCaptainOfTeamInMatch(matchId, captainId);
+      const isCaptain = await this.matchReadRepo.isCaptainOfTeamInMatch(matchId, captainId);
       if (!isCaptain) {
         return { success: false, error: "Only the team captain can add players to the match", statusCode: 403 };
       }
 
-      const alreadyInMatch = await this.matchRepo.isPlayerInMatchTeam(matchId, userId);
+      const alreadyInMatch = await this.matchReadRepo.isPlayerInMatchTeam(matchId, userId);
       if (alreadyInMatch) {
         return { success: false, error: "Player is already in this match", statusCode: 400 };
       }
 
-      const success = await this.matchRepo.addPlayer(matchId, userId, teamId, performanceNotes);
+      const success = await this.matchWriteRepo.addPlayer(matchId, userId, teamId, performanceNotes);
       
       if (!success) {
         return { success: false, error: "Failed to add player to match", statusCode: 400 };
@@ -208,14 +210,14 @@ export class MatchService implements IMatchService {
   ): Promise<Result<void>> {
     try {
 
-      const isCaptain = await this.matchRepo.isCaptainOfTeamInMatch(matchId, captainId);
+      const isCaptain = await this.matchReadRepo.isCaptainOfTeamInMatch(matchId, captainId);
       const isSelf = captainId === userId;
 
       if (!isCaptain && !isSelf) {
         return { success: false, error: "Only the team captain or the player himself can remove a player", statusCode: 403 };
       }
 
-      const success = await this.matchRepo.removePlayer(matchId, userId);
+      const success = await this.matchWriteRepo.removePlayer(matchId, userId);
       
       if (!success) {
         return { success: false, error: "Failed to remove player from match", statusCode: 400 };
@@ -231,7 +233,7 @@ export class MatchService implements IMatchService {
 
   async generateMatchesForTournament(tournamentId: number) : Promise<Result<void>> {
     try {
-      const tournament = await this.tournamentRepo.findById(tournamentId);
+      const tournament = await this.tournamentReadRepo.findById(tournamentId);
 
       if (!tournament) {
         return {
@@ -241,7 +243,7 @@ export class MatchService implements IMatchService {
         };
       }
 
-      const existingMatches = await this.matchRepo.findByTournament(tournamentId);
+      const existingMatches = await this.matchReadRepo.findByTournament(tournamentId);
       if (existingMatches.length > 0) {
         return {
           success: true,
@@ -249,7 +251,7 @@ export class MatchService implements IMatchService {
         };
       }
 
-      const teams = await this.teamRepo.getConfirmedTournamentTeams(tournamentId);
+      const teams = await this.teamReadRepo.getConfirmedTournamentTeams(tournamentId);
 
       if (teams.length < 2) {
         return {
