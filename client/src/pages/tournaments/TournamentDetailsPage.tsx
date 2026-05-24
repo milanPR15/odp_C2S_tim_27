@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { matchesApi } from "../../api_services/matches/MatchesAPIService";
+import MatchDetailsDialog from "../../components/matches/MatchDetailsDialog";
 import { tournamentApi } from "../../api_services/tournament/TournamentAPIService";
 import { TournamentTeamRegistrationPanel } from "../../components/tournament_registration/TournamentTeamRegistrationPanel";
 import {
@@ -54,6 +55,7 @@ export default function TournamentDetailsPage() {
   const [matches, setMatches] = useState<MatchDto[]>([]);
   const [registrationCount, setRegistrationCount] = useState<number | null>(null);
   const [registrations, setRegistrations] = useState<TournamentRegistrationDto[]>([]);
+  const [selectedMatchId, setSelectedMatchId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isConfirmingId, setIsConfirmingId] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -271,7 +273,14 @@ export default function TournamentDetailsPage() {
           <TableHead columns={["Match ID", "Team 1", "Team 2", "Scheduled", "Result"]} />
           <tbody>
             {sortedMatches.map((match) => (
-              <tr key={match.match_id} className="border-b last:border-b-0 border-white/6">
+              <tr
+                key={match.match_id}
+                className="border-b last:border-b-0 border-white/6 hover:bg-white/3 transition-colors cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedMatchId(match.match_id)}
+                onKeyDown={(e) => { if (e.key === 'Enter') setSelectedMatchId(match.match_id); }}
+              >
                 <td className="px-5 py-4 text-white/85 font-medium">#{match.match_id}</td>
                 <td className="px-5 py-4 text-white/70">{match.team1_id ?? "TBD"}</td>
                 <td className="px-5 py-4 text-white/70">{match.team2_id ?? "TBD"}</td>
@@ -282,6 +291,12 @@ export default function TournamentDetailsPage() {
           </tbody>
         </Table>
       )}
+
+      <MatchDetailsDialog
+        matchId={selectedMatchId}
+        isOpen={selectedMatchId !== null}
+        onClose={() => setSelectedMatchId(null)}
+      />
     </div>
   );
 }
