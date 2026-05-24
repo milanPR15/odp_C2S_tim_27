@@ -26,6 +26,7 @@ import { AuditLogController } from "./WebAPI/controllers/AuditLogController";
 import { MatchController } from "./WebAPI/controllers/MatchController";
 import { TeamRepository } from "./Database/repositories/team/TeamRepository";
 import { TeamInvitationRepository } from "./Database/repositories/team_invitations/TeamInvitationRepository";
+import { TournamentRegistrationRepository } from "./Database/repositories/tournaments/TournamentRegistrationRepository";
 import { TeamService } from "./Services/teams/TeamService";
 import { TeamController } from "./WebAPI/controllers/TeamController";
 
@@ -40,15 +41,16 @@ const auditLogRepo = new AuditLogRepository(db, logger);
 const matchRepo    = new MatchRepository(db, logger);
 const teamRepo = new TeamRepository(db, logger);
 const teamInvitationRepo = new TeamInvitationRepository(db, logger);
+const tournamentRegistrationRepo = new TournamentRegistrationRepository(db, logger);
 
 // Services
 const teamService = new TeamService(teamRepo, teamInvitationRepo, userRepo, logger);
 const authService   = new AuthService(userRepo);
 const auditLogService = new AuditLogService(auditLogRepo);
 const userService   = new UserService(userRepo, logger, auditLogService);
-const tournamentService = new TournamentService(tournamentRepo, auditLogService);
 const gameService = new GameService(gamesRepo, auditLogService);
-const matchService = new MatchService(matchRepo, teamRepo, logger);
+const matchService = new MatchService(matchRepo, teamRepo, tournamentRepo, logger);
+const tournamentService = new TournamentService(tournamentRepo, gamesRepo, teamRepo, tournamentRegistrationRepo, auditLogService, matchService);
 
 // Express
 const app = express();

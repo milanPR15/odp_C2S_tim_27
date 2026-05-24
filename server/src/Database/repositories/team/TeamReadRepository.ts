@@ -96,7 +96,7 @@ export class TeamReadRepository {
       const [rows] = await res.conn.execute<RowDataPacket[]>(
         `
         SELECT t.*
-        FROM teams t
+        FROM team t
         JOIN tournament_registrations tr
           ON t.team_id = tr.team_id
         WHERE tr.tournament_id = ?
@@ -118,7 +118,7 @@ export class TeamReadRepository {
       const [rows] = await res.conn.execute<RowDataPacket[]>(
         `
         SELECT DISTINCT t.*
-        FROM teams t
+        FROM team t
         JOIN tournament_registrations tr
           ON t.team_id = tr.team_id
         WHERE tr.tournament_id = ?

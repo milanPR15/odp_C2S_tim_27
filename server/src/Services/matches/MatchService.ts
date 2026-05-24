@@ -1,18 +1,80 @@
 import { IMatchService } from "../../Domain/services/matches/IMatchService";
 import { IMatchRepository } from "../../Domain/repositories/matches/IMatchRepository";
 import { ITeamRepository } from "../../Domain/repositories/teams/ITeamRepository";
+import { ITournamentRepository } from "../../Domain/repositories/tournaments/ITournamentRepository";
 import { MatchDto } from "../../Domain/DTOs/matches/MatchDto";
 import { UpdateMatchResultDto } from "../../Domain/DTOs/matches/UpdateMatchResultDto";
 import { Result } from "../../Domain/types/Result";
 import { ILoggerService } from "../../Domain/services/logger/ILoggerService";
+import { TournamentFormat } from "../../Domain/enums/TournamentFormat";
+import { Team } from "../../Domain/models/Team";
 
 export class MatchService implements IMatchService {
 
   public constructor(
     private readonly matchRepo: IMatchRepository,
     private readonly teamRepo: ITeamRepository,
+    private readonly tournamentRepo: ITournamentRepository,
     private readonly logger: ILoggerService
   ) {}
+
+  private shuffleTeams<T>(teams: T[]): T[] {
+    return [...teams].sort(() => Math.random() - 0.5);
+  }
+
+  private async createScheduledMatch(tournamentId: number, team1Id: number, team2Id: number): Promise<void> {
+    await this.matchRepo.create({
+      tournament_id: tournamentId,
+      team1_id: team1Id,
+      team2_id: team2Id,
+      scheduled_at: new Date(),
+      result: null,
+      winner_team_id: null,
+      next_match_id: null,
+      next_match_slot: null,
+      status: "scheduled"
+    });
+  }
+
+  private async generateRoundRobinMatches(tournamentId: number, teamIds: number[]): Promise<void> {
+    for (let i = 0; i < teamIds.length; i += 1) {
+      for (let j = i + 1; j < teamIds.length; j += 1) {
+        await this.createScheduledMatch(tournamentId, teamIds[i], teamIds[j]);
+      }
+    }
+  }
+
+  private async generateSingleEliminationMatches(tournamentId: number, teamIds: number[]): Promise<void> {
+    const shuffledTeams = this.shuffleTeams(teamIds);
+
+    for (let i = 0; i < shuffledTeams.length; i += 2) {
+      const team1Id = shuffledTeams[i];
+      const team2Id = shuffledTeams[i + 1];
+
+      if (!team2Id) {
+        continue;
+      }
+
+      await this.createScheduledMatch(tournamentId, team1Id, team2Id);
+    }
+  }
+
+  private async generateDoubleEliminationMatches(tournamentId: number, teamIds: number[]): Promise<void> {
+    const shuffledTeams = this.shuffleTeams(teamIds);
+
+    for (let i = 0; i < shuffledTeams.length; i += 2) {
+      const team1Id = shuffledTeams[i];
+      const team2Id = shuffledTeams[i + 1];
+
+      if (!team2Id) {
+        continue;
+      }
+
+      await this.createScheduledMatch(tournamentId, team1Id, team2Id);
+      await this.createScheduledMatch(tournamentId, team1Id, team2Id);
+      await this.createScheduledMatch(tournamentId, team1Id, team2Id);
+    }
+  }
 
   async getMatchesByTournament(tournamentId: number): Promise<Result<MatchDto[]>> {
     try {
@@ -169,7 +231,25 @@ export class MatchService implements IMatchService {
 
   async generateMatchesForTournament(tournamentId: number) : Promise<Result<void>> {
     try {
-      const teams = await this.teamRepo.getRegisteredTournamentTeams(tournamentId);
+      const tournament = await this.tournamentRepo.findById(tournamentId);
+
+      if (!tournament) {
+        return {
+          success: false,
+          error: "Tournament not found",
+          statusCode: 404
+        };
+      }
+
+      const existingMatches = await this.matchRepo.findByTournament(tournamentId);
+      if (existingMatches.length > 0) {
+        return {
+          success: true,
+          data: undefined
+        };
+      }
+
+      const teams = await this.teamRepo.getConfirmedTournamentTeams(tournamentId);
 
       if (teams.length < 2) {
         return {
@@ -179,28 +259,14 @@ export class MatchService implements IMatchService {
         };
       }
 
-      const shuffledTeams = [...teams].sort(() => Math.random() - 0.5);
+      const teamIds = teams.map((team) => team.team_id);
 
-      for (let i = 0; i < shuffledTeams.length; i += 2) {
-
-        const team1 = shuffledTeams[i];
-        const team2 = shuffledTeams[i + 1];
-
-        if (!team2) {
-          continue;
-        }
-
-        await this.matchRepo.create({
-          tournament_id: tournamentId,
-          team1_id: team1.team_id,
-          team2_id: team2.team_id,
-          scheduled_at: new Date(),
-          result: null,
-          winner_team_id: null,
-          next_match_id: null,
-          next_match_slot: null,
-          status: "scheduled"
-        });
+      if (tournament.format === TournamentFormat.ROUND_ROBIN) {
+        await this.generateRoundRobinMatches(tournamentId, teamIds);
+      } else if (tournament.format === TournamentFormat.DOUBLE_ELIMINATION) {
+        await this.generateDoubleEliminationMatches(tournamentId, teamIds);
+      } else {
+        await this.generateSingleEliminationMatches(tournamentId, teamIds);
       }
 
       return {
