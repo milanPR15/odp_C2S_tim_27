@@ -3,11 +3,12 @@ import { TournamentDto } from "../../Domain/DTOs/tournaments/TournamentDto";
 import { UpdateTournamentDto } from "../../Domain/DTOs/tournaments/UpdateTournamentDto";
 import { RegisterTournamentTeamDto } from "../../Domain/DTOs/tournaments/RegisterTournamentTeamDto";
 import { Tournament } from "../../Domain/models/Tournament";
-import { ITournamentRepository } from "../../Domain/repositories/tournaments/ITournamentRepository";
+import { ITournamentReadRepository } from "../../Domain/repositories/tournaments/ITournamentReadRepository";
+import { ITournamentWriteRepository } from "../../Domain/repositories/tournaments/ITournamentWriteRepository";
 import { ITournamentService } from "../../Domain/services/tournaments/ITournamentService";
 import { IAuditLogService } from "../../Domain/services/auditLogs/IAuditLogService";
-import { IGamesRepository } from "../../Domain/repositories/games/IGamesRepository";
-import { ITeamRepository } from "../../Domain/repositories/teams/ITeamRepository";
+import { IGamesReadRepository } from "../../Domain/repositories/games/IGamesReadRepository";
+import { ITeamReadRepository } from "../../Domain/repositories/teams/ITeamReadRepository";
 import { ITournamentRegistrationRepository } from "../../Domain/repositories/tournaments/ITournamentRegistrationRepository";
 import { TournamentRegistration } from "../../Domain/models/TournamentRegistration";
 import { TournamentStatus } from "../../Domain/enums/TournamentStatus";
@@ -18,9 +19,10 @@ import { TournamentRegistrationDto } from "../../Domain/DTOs/tournaments/Tournam
 
 export class TournamentService implements ITournamentService {
     public constructor(
-        private readonly tournamentRepository: ITournamentRepository,
-        private readonly gamesRepository: IGamesRepository,
-        private readonly teamRepository: ITeamRepository,
+        private readonly tournamentReadRepository: ITournamentReadRepository,
+        private readonly tournamentWriteRepository: ITournamentWriteRepository,
+        private readonly gamesReadRepository: IGamesReadRepository,
+        private readonly teamReadRepository: ITeamReadRepository,
         private readonly registrationRepository: ITournamentRegistrationRepository,
         private readonly auditLogService: IAuditLogService,
         private readonly matchService: IMatchService
@@ -66,7 +68,7 @@ export class TournamentService implements ITournamentService {
         }
 
         if (tournament.status !== TournamentStatus.ONGOING) {
-            const activated = await this.tournamentRepository.update(new Tournament(
+            const activated = await this.tournamentWriteRepository.update(new Tournament(
                 tournament.tournament_id,
                 tournament.name,
                 tournament.game_id,
@@ -88,12 +90,12 @@ export class TournamentService implements ITournamentService {
     }
 
     async getAll(): Promise<Result<TournamentDto[]>> {
-        const tournaments = await this.tournamentRepository.findAll();
+        const tournaments = await this.tournamentReadRepository.findAll();
         return { success: true, data: tournaments.map(this.mapToDto) };
     }
 
     async getById(id: number): Promise<Result<TournamentDto>> {
-        const tournament = await this.tournamentRepository.findById(id);
+        const tournament = await this.tournamentReadRepository.findById(id);
         if (!tournament) {
             return { success: false, statusCode: 404, error: `Tournament with ID ${id} not found.` };
         }
@@ -101,12 +103,12 @@ export class TournamentService implements ITournamentService {
     }
 
     async getByGameId(gameId: number): Promise<Result<TournamentDto[]>> {
-        const tournaments = await this.tournamentRepository.findByGameId(gameId);
+        const tournaments = await this.tournamentReadRepository.findByGameId(gameId);
         return { success: true, data: tournaments.map(this.mapToDto) };
     }
 
     async getRegistrationCount(id: number): Promise<Result<number>> {
-        const tournament = await this.tournamentRepository.findById(id);
+        const tournament = await this.tournamentReadRepository.findById(id);
         if (!tournament) {
             return { success: false, statusCode: 404, error: `Tournament with ID ${id} not found.` };
         }
@@ -116,7 +118,7 @@ export class TournamentService implements ITournamentService {
     }
 
     async getRegistrations(id: number): Promise<Result<TournamentRegistrationDto[]>> {
-        const tournament = await this.tournamentRepository.findById(id);
+        const tournament = await this.tournamentReadRepository.findById(id);
         if (!tournament) {
             return { success: false, statusCode: 404, error: `Tournament with ID ${id} not found.` };
         }
@@ -131,7 +133,7 @@ export class TournamentService implements ITournamentService {
     }
 
     async create(tournament: CreateTournamentDto, userId: number = 0): Promise<Result<TournamentDto>> {
-        const byName = await this.tournamentRepository.findByName(tournament.name);
+        const byName = await this.tournamentReadRepository.findByName(tournament.name);
         if (byName.tournament_id !== 0) {
             return { success: false, statusCode: 409, error: `Tournament with name '${tournament.name}' already exists.` };
         }
@@ -141,7 +143,7 @@ export class TournamentService implements ITournamentService {
             return { success: false, statusCode: 400, error: "Invalid entry deadline format string provided." };
         }
 
-        const created = await this.tournamentRepository.create(
+        const created = await this.tournamentWriteRepository.create(
             new Tournament(
                 0,
                 tournament.name,
@@ -170,12 +172,12 @@ export class TournamentService implements ITournamentService {
     }
 
     async update(id: number, tournament: UpdateTournamentDto, userId: number = 0): Promise<Result<TournamentDto>> {
-        const existing = await this.tournamentRepository.findById(id);
+        const existing = await this.tournamentReadRepository.findById(id);
         if (!existing) {
             return { success: false, statusCode: 404, error: `Tournament with ID ${id} not found.` };
         }
 
-        const success = await this.tournamentRepository.update(new Tournament(
+        const success = await this.tournamentWriteRepository.update(new Tournament(
             id,
             tournament.name ?? existing.name,
             tournament.game_id ?? existing.game_id,
@@ -198,7 +200,7 @@ export class TournamentService implements ITournamentService {
             JSON.stringify({ name: tournament.name, game_id: tournament.game_id })
         );
 
-        const updated = await this.tournamentRepository.findById(id);
+        const updated = await this.tournamentReadRepository.findById(id);
         if (!updated) {
             return { success: false, statusCode: 500, error: "Tournament was updated but failed to retrieve the updated data." };
         }
@@ -206,11 +208,11 @@ export class TournamentService implements ITournamentService {
     }
 
     async delete(id: number, userId: number = 0): Promise<Result<void>> {
-        const existing = await this.tournamentRepository.findById(id);
+        const existing = await this.tournamentReadRepository.findById(id);
         if (!existing) {
             return { success: false, statusCode: 404, error: `Tournament with ID ${id} not found.` };
         }
-        const success = await this.tournamentRepository.delete(id);
+        const success = await this.tournamentWriteRepository.delete(id);
         if (!success) {
             return { success: false, statusCode: 500, error: "Failed to delete the tournament from the database." };
         }
@@ -230,12 +232,12 @@ export class TournamentService implements ITournamentService {
             return { success: false, statusCode: 400, error: "Invalid team registration payload." };
         }
 
-        const tournament = await this.tournamentRepository.findById(tournamentId);
+        const tournament = await this.tournamentReadRepository.findById(tournamentId);
         if (!tournament) {
             return { success: false, statusCode: 404, error: `Tournament with ID ${tournamentId} not found.` };
         }
 
-        const game = await this.gamesRepository.getById(tournament.game_id);
+        const game = await this.gamesReadRepository.getById(tournament.game_id);
         if (!game) {
             return { success: false, statusCode: 404, error: "Game not found for this tournament." };
         }
@@ -248,12 +250,12 @@ export class TournamentService implements ITournamentService {
             return { success: false, statusCode: 400, error: "The entry deadline has passed." };
         }
 
-        const team = await this.teamRepository.findById(dto.teamId);
+        const team = await this.teamReadRepository.findById(dto.teamId);
         if (!team) {
             return { success: false, statusCode: 404, error: "Team not found." };
         }
 
-        const members = await this.teamRepository.findMembers(dto.teamId);
+        const members = await this.teamReadRepository.findMembers(dto.teamId);
         const captain = members.find((member) => member.role === "captain");
         if (!captain || captain.user_id !== userId) {
             return { success: false, statusCode: 403, error: "Only the team captain can register the team." };
@@ -313,7 +315,7 @@ export class TournamentService implements ITournamentService {
     }
 
     async confirmRegistration(tournamentId: number, registrationId: number, userId: number): Promise<Result<void>> {
-        const tournament = await this.tournamentRepository.findById(tournamentId);
+        const tournament = await this.tournamentReadRepository.findById(tournamentId);
         if (!tournament) {
             return { success: false, statusCode: 404, error: `Tournament with ID ${tournamentId} not found.` };
         }
