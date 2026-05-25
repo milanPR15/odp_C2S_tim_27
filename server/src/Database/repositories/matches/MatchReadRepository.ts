@@ -2,7 +2,7 @@ import { DbManager } from "../../connection/DbConnectionPool";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
 import { Match, MatchRow } from "../../../Domain/models/Match";
 import { MatchPlayer } from "../../../Domain/models/MatchPlayers";
-import { ResultSetHeader, RowDataPacket } from "mysql2";
+import { RowDataPacket } from "mysql2";
 import { IMatchReadRepository } from "../../../Domain/repositories/matches/IMatchReadRepository";
 
 export class MatchReadRepository implements IMatchReadRepository{
@@ -61,16 +61,23 @@ export class MatchReadRepository implements IMatchReadRepository{
     const { conn } = connResult;
 
     try {
-      const [rows] = await conn.execute(`
-        SELECT 1 FROM match_players mp
-        JOIN team_members tm ON mp.team_id = tm.team_id
-        WHERE mp.match_id = ? 
-          AND mp.user_id = ? 
-          AND tm.role = 'captain'
-        LIMIT 1
+      const [rows] = await conn.execute<RowDataPacket[]>(`
+        SELECT EXISTS(
+          SELECT 1
+          FROM match_players mp
+          WHERE mp.match_id = ?
+            AND mp.user_id = ?
+            AND EXISTS(
+              SELECT 1
+              FROM team_members tm
+              WHERE tm.team_id = mp.team_id
+                AND tm.user_id = mp.user_id
+                AND tm.role = 'captain'
+            )
+        ) AS found
       `, [matchId, captainId]);
 
-      return (rows as ResultSetHeader[]).length > 0;
+      return rows[0]?.found === 1;
     } finally {
       conn.release();
     }
@@ -82,13 +89,16 @@ export class MatchReadRepository implements IMatchReadRepository{
     const { conn } = connResult;
 
     try {
-      const [rows] = await conn.execute(`
-        SELECT 1 FROM match_players 
-        WHERE match_id = ? AND user_id = ?
-        LIMIT 1
+      const [rows] = await conn.execute<RowDataPacket[]>(`
+        SELECT EXISTS(
+          SELECT 1
+          FROM match_players
+          WHERE match_id = ?
+            AND user_id = ?
+        ) AS found
       `, [matchId, userId]);
 
-      return (rows as ResultSetHeader[]).length > 0;
+      return rows[0]?.found === 1;
     } finally {
       conn.release();
     }
