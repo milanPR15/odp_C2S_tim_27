@@ -97,7 +97,7 @@ export class TeamService implements ITeamService {
 
   async getTeamById(teamId: number): Promise<Result<TeamDto>> {
     const team = await this.teamReadRepo.findById(teamId);
-    if (!team) return { success: false, error: "Team not found", statusCode: 404 };
+    if (!team.team_id) return { success: false, error: "Team not found", statusCode: 404 };
 
     const dto = await this.toTeamDto(team);
     return { 
@@ -212,7 +212,7 @@ export class TeamService implements ITeamService {
 
     // 4. Check for pending invites
     const existingInvite = await this.invitationReadRepo.findByTeamAndUser(teamId, targetUserId);
-    if (existingInvite && existingInvite.status === InvitationStatus.PENDING) {
+    if (existingInvite.id && existingInvite.status === InvitationStatus.PENDING) {
       return { success: false, error: "An invitation is already pending for this user", statusCode: 400 };
     }
 
@@ -228,7 +228,7 @@ export class TeamService implements ITeamService {
   async respondToInvite(teamId: number, userId: number, accept: boolean): Promise<Result<boolean>> {
     // 1. Get invite by team and user
     const invite = await this.invitationReadRepo.findByTeamAndUser(teamId, userId);
-    if (!invite) {
+    if (!invite.id) {
       return { success: false, error: "Pending invitation not found", statusCode: 404 };
     }
 
@@ -275,7 +275,7 @@ export class TeamService implements ITeamService {
 
   async cancelInvite(inviteId: number, captainId: number): Promise<Result<boolean>> {
     const invite = await this.invitationReadRepo.findById(inviteId);
-    if (!invite) return { success: false, error: "Invitation not found", statusCode: 404 };
+    if (!invite.id) return { success: false, error: "Invitation not found", statusCode: 404 };
 
     const members = await this.teamReadRepo.findMembers(invite.team_id);
     const isCaptain = members.some((m) => m.user_id === captainId && m.role === TeamRole.CAPTAIN);

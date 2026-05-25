@@ -11,7 +11,7 @@ export interface TeamDto {
   team_name: string;
   tag: string;
   logo: string;
-  description: string | null;
+  description: string;
   captain_id?: number;
   captain_gamer_tag?: string;
   num_members?: number;

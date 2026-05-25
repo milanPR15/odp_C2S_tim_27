@@ -19,7 +19,7 @@ export default function GameDetailPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const { id } = useParams<{ id: string }>();
-  const [game, setGame] = useState<GameDto | null>(null);
+  const [game, setGame] = useState<GameDto>({} as GameDto);
   const [editing, setEditing] = useState(false);
   const [tournaments, setTournaments] = useState<TournamentDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);

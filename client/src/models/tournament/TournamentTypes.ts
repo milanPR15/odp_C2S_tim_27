@@ -42,7 +42,7 @@ export type TournamentRegistrationDto = {
   team_id: number;
   team_name: string;
   status: "pending" | "confirmed" | "disqualified";
-  seed: number | null;
+  seed: number;
   registered_at: string;
   selected_player_ids: number[];
 };

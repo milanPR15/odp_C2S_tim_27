@@ -4,6 +4,6 @@ export class MatchPlayerDto {
     public gamer_tag: string,
     public full_name: string,
     public team_id: number,
-    public performance_notes: string | null
+    public performance_notes: string
   ) {}
 }

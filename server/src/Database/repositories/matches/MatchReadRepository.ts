@@ -21,9 +21,9 @@ export class MatchReadRepository implements IMatchReadRepository{
     }
   }
 
-  async findById(matchId: number): Promise<Match | null> {
+  async findById(matchId: number): Promise<Match> {
     const connResult = await this.db.getReadConnection();
-    if (!connResult) return null;
+    if (!connResult) return new Match();
     const { conn } = connResult;
 
     try {
@@ -32,7 +32,7 @@ export class MatchReadRepository implements IMatchReadRepository{
         [matchId]
       );
       const row = (rows as MatchRow[])[0];
-      return row ? Match.fromDB(row) : null;
+      return row ? Match.fromDB(row) : new Match();
     } finally {
       conn.release();
     }

@@ -22,18 +22,18 @@ export class UserService implements IUserService {
     return users.map((u) => new UserDto(u.id, u.gamer_tag, u.email, u.role, u.isActive));
   }
 
-  async getById(id: number): Promise<UserDto | null> {
+  async getById(id: number): Promise<UserDto> {
     const u = await this.userReadRepo.findById(id);
-    if (u.id === 0) return null;
+    if (u.id === 0) return new UserDto();
     return new UserDto(u.id, u.gamer_tag, u.email, u.role, u.isActive);
   }
 
-  async getCurrentProfile(userId: number): Promise<UserDto | null> {
+  async getCurrentProfile(userId: number): Promise<UserDto> {
 
     const user = await this.userReadRepo.findById(userId);
 
     if (user.id === 0) {
-      return null;
+      return new UserDto();
     }
 
     return new UserDto(user.id, user.gamer_tag, user.email, user.role, user.isActive);

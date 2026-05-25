@@ -12,18 +12,18 @@ export class TeamReadRepository implements ITeamReadRepository {
     private readonly logger: ILoggerService
   ) {}
 
-  async findById(teamId: number): Promise<Team | null> {
+  async findById(teamId: number): Promise<Team> {
     const connResult = await this.db.getReadConnection();
-    if (!connResult) return null;
+    if (!connResult) return new Team();
     const { conn } = connResult;
 
     try {
       const [rows] = await conn.execute<RowDataPacket[]>("SELECT * FROM team WHERE team_id = ?", [teamId]);
       const row = rows[0];
-      return row ? Team.fromDB(row) : null;
+      return row ? Team.fromDB(row) : new Team();
     } catch (err) {
       this.logger.error("TeamRepository", "findById failed", err instanceof Error ? err : String(err));
-      return null;
+      return new Team();
     } finally {
       conn.release();
     }

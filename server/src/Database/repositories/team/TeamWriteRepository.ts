@@ -124,7 +124,46 @@ export class TeamWriteRepository implements ITeamWriteRepository{
 
 
   async changeCaptain(teamId: number, newCaptainId: number): Promise<boolean> {
-    return false;
+    const connResult = await this.db.getWriteConnection();
+    if (!connResult) return false;
+
+    const { conn } = connResult;
+    try {
+      await conn.beginTransaction();
+
+      const [demoteResult] = await conn.execute<ResultSetHeader>(
+        `UPDATE team_members
+         SET role = 'member'
+         WHERE team_id = ? AND role = 'captain'`,
+        [teamId]
+      );
+
+      if (demoteResult.affectedRows === 0) {
+        await conn.rollback();
+        return false;
+      }
+
+      const [promoteResult] = await conn.execute<ResultSetHeader>(
+        `UPDATE team_members
+         SET role = 'captain'
+         WHERE team_id = ? AND user_id = ?`,
+        [teamId, newCaptainId]
+      );
+
+      if (promoteResult.affectedRows === 0) {
+        await conn.rollback();
+        return false;
+      }
+
+      await conn.commit();
+      return true;
+    } catch (err) {
+      await conn.rollback();
+      this.logger.error("TeamRepository", "changeCaptain failed", err instanceof Error ? err : String(err));
+      return false;
+    } finally {
+      conn.release();
+    }
   }
 
   

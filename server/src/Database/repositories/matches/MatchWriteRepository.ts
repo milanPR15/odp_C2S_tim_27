@@ -61,7 +61,7 @@ async addPlayer(matchId: number, userId: number, teamId: number, performanceNote
       await conn.execute(
         `INSERT INTO match_players (match_id, user_id, team_id, performance_notes)
          VALUES (?, ?, ?, ?)`,
-        [matchId, userId, teamId, performanceNotes || null]
+        [matchId, userId, teamId, performanceNotes || ""]
       );
       return true;
     } finally {

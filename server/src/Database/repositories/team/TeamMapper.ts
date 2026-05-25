@@ -9,7 +9,7 @@ export class TeamMapper {
       row.team_name,
       row.tag,
       row.logo,
-      row.description
+      row.description ?? ""
     );
   }
 

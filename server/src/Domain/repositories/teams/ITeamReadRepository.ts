@@ -3,7 +3,7 @@ import { TeamMember } from "../../models/TeamMember";
 import { CreateTeamDto } from "../../DTOs/teams/CreateTeamDto";
 
 export interface ITeamReadRepository {
-  findById(teamId: number): Promise<Team | null>;
+  findById(teamId: number): Promise<Team>;
   findByUserId(userId: number): Promise<Team[]>;
   findMembers(teamId: number): Promise<TeamMember[]>;
   isUserInTeam(userId: number, teamId: number): Promise<boolean>;

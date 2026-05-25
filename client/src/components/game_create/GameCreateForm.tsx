@@ -18,7 +18,7 @@ export function GameCreateForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [logoFileName, setLogoFileName] = useState("");
-  const logoInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>({} as HTMLInputElement);
 
   const isValid = useMemo(() => {
     return form.title.trim().length >= 2

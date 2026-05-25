@@ -6,7 +6,7 @@ export class Team{
         public team_name: string = "",
         public tag: string = "", 
         public logo: string = "",
-        public description: string | null = null,
+        public description: string = "",
         public createdAt: Date = new Date(), 
         public updatedAt: Date = new Date()
     ){}
@@ -17,7 +17,7 @@ export class Team{
       row.team_name,
       row.tag,
       row.logo,
-      row.description,
+      row.description ?? "",
       row.created_at ? new Date(row.created_at) : new Date(),
       row.updated_at ? new Date(row.updated_at) : new Date()
     );

@@ -11,18 +11,18 @@ export class TournamentReadRepository implements ITournamentReadRepository {
     private readonly logger: ILoggerService
   ) {}
 
-  async findById(id: number): Promise<Tournament | null> {
+  async findById(id: number): Promise<Tournament> {
         const res = await this.db.getReadConnection();
-        if (!res) return null;
+        if (!res) return new Tournament();
         try {
             const [rows] = await res.conn.execute<RowDataPacket[]>(
                 `SELECT * FROM tournaments WHERE tournament_id = ?`,
                 [id]
             );
-            return rows.length > 0 ? TournamentMapper.fromRow(rows[0]) : null;
+            return rows.length > 0 ? TournamentMapper.fromRow(rows[0]) : new Tournament();
         } catch (err) {
             this.logger.error('Tournament repository', "findById failed", err instanceof Error ? err : String(err));
-            return null;
+            return new Tournament();
         }
         finally { res.conn.release(); }
     }

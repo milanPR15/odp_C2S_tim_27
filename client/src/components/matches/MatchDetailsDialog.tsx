@@ -3,7 +3,21 @@ import { Modal, Spinner, ErrorBox, Empty } from "../ui/UI";
 import { matchesApi } from "../../api_services/matches/MatchesAPIService";
 import type { MatchDto, UpdateMatchResultPayload } from "../../api_services/matches/IMatchesAPIService";
 
-function formatDateTime(value: string | undefined) {
+const EMPTY_MATCH: MatchDto = {
+  match_id: 0,
+  tournament_id: 0,
+  team1_id: 0,
+  team2_id: 0,
+  scheduled_at: "",
+  result: "",
+  next_match_id: 0,
+  next_match_slot: "",
+  loser_next_match_id: 0,
+  loser_next_match_slot: "",
+  status: "scheduled",
+};
+
+function formatDateTime(value: string) {
   if (!value) return "-";
   const p = new Date(value);
   if (Number.isNaN(p.getTime())) return "-";
@@ -15,11 +29,11 @@ export function MatchDetailsDialog({
   isOpen,
   onClose,
 }: {
-  matchId: number | null;
+  matchId: number;
   isOpen: boolean;
   onClose: () => void;
 }) {
-  const [match, setMatch] = useState<MatchDto | null>(null);
+  const [match, setMatch] = useState<MatchDto>(EMPTY_MATCH);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [editResult, setEditResult] = useState<string>("");
@@ -29,8 +43,8 @@ export function MatchDetailsDialog({
 
   useEffect(() => {
     let active = true;
-    if (!isOpen || matchId == null) {
-      setMatch(null);
+    if (!isOpen || matchId === 0) {
+      setMatch(EMPTY_MATCH);
       setError("");
       setIsLoading(false);
       return () => {
@@ -46,11 +60,11 @@ export function MatchDetailsDialog({
         if (!active) return;
         if (!res.success || !res.data) {
           setError(res.message || "Failed to load match details.");
-          setMatch(null);
+          setMatch(EMPTY_MATCH);
           return;
         }
         setMatch(res.data);
-        setEditResult(res.data.result ?? "");
+        setEditResult(res.data.result || "");
       })
       .catch(() => {
         if (!active) return;
@@ -67,7 +81,7 @@ export function MatchDetailsDialog({
   }, [isOpen, matchId]);
 
   async function handleSave() {
-    if (!match) return;
+    if (match.match_id === 0) return;
     setSaveError("");
     setSaveSuccess("");
     setIsSaving(true);
@@ -88,14 +102,14 @@ export function MatchDetailsDialog({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={match ? `Match #${match.match_id}` : "Match details"}>
+    <Modal isOpen={isOpen} onClose={onClose} title={match.match_id !== 0 ? `Match #${match.match_id}` : "Match details"}>
       {isLoading ? (
         <div className="flex items-center justify-center py-8">
           <Spinner size={28} />
         </div>
       ) : error ? (
         <ErrorBox message={error} />
-      ) : match ? (
+      ) : match.match_id !== 0 ? (
         <>
         <div className="space-y-3 text-sm text-white/85">
           <div className="grid grid-cols-2 gap-4">
@@ -112,11 +126,11 @@ export function MatchDetailsDialog({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-xs text-white/30 uppercase tracking-widest">Team 1</p>
-              <p className="font-medium">{match.team1_id ?? "TBD"}</p>
+              <p className="font-medium">{!match.team1_id || match.team1_id === 0 ? "TBD" : `Team ${match.team1_id}`}</p>
             </div>
             <div>
               <p className="text-xs text-white/30 uppercase tracking-widest">Team 2</p>
-              <p className="font-medium">{match.team2_id ?? "TBD"}</p>
+              <p className="font-medium">{!match.team2_id || match.team2_id === 0 ? "TBD" : `Team ${match.team2_id}`}</p>
             </div>
           </div>
 
@@ -127,7 +141,7 @@ export function MatchDetailsDialog({
 
           <div>
             <p className="text-xs text-white/30 uppercase tracking-widest">Result</p>
-            <p className="font-medium">{match.result ?? "-"}</p>
+            <p className="font-medium">{match.result && match.result !== "" ? match.result : "-"}</p>
           </div>
         </div>
 
@@ -145,7 +159,7 @@ export function MatchDetailsDialog({
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={isSaving || editResult.trim() === "" || editResult === match.result || match.result !== null}
+                disabled={isSaving || editResult.trim() === "" || editResult === match.result}
                 className="rounded-lg bg-cyan-500/20 border border-cyan-500/20 px-4 py-2 text-sm text-cyan-200 hover:bg-cyan-500/30 disabled:opacity-50"
               >
                 {isSaving ? "Saving..." : "Save"}

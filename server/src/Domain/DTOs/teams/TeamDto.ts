@@ -6,7 +6,7 @@ export class TeamDto {
     public team_name: string,
     public tag: string,
     public logo: string,
-    public description: string | null,
+    public description: string,
     public captain_id: number,           
     public captain_gamer_tag: string,    
     public members_count: number,

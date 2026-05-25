@@ -4,7 +4,7 @@ export type AuditLogDto = {
     action: string;
     entity: string;
     entity_id: number;
-    meta: string | null;
-    ip_address: string | null;
+    meta: string;
+    ip_address: string;
     created_at: string;
 };

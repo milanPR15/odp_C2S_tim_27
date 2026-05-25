@@ -11,7 +11,8 @@ export class UserMapper {
       row.email,
       row.role as UserRole,
       row.password_hash,
-      row.is_active
+      row.is_active,
+      row.profile_image ?? ""
     );
   }
 }

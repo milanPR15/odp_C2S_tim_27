@@ -14,7 +14,7 @@ export function GameEditForm({ game, onSaved, onCancel }: { game: GameDto; onSav
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [logoFileName, setLogoFileName] = useState("");
-  const logoInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>({} as HTMLInputElement);
 
   const isValid = useMemo(() => {
     return !!form.title && !!form.genre && (form.max_players === undefined || form.max_players >= 1) && (!!form.logo || form.logo === "");

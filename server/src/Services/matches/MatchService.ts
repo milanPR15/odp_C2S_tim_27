@@ -17,9 +17,12 @@ type BracketParticipant = {
   sourceKind: "team" | "winner" | "loser";
 };
 
+type EmptyBracketSlot = Record<string, never>;
+type BracketSlot = BracketParticipant | EmptyBracketSlot;
+
 type BracketStageResult = {
   createdMatches: Match[];
-  nextParticipants: Array<BracketParticipant | null>;
+  nextParticipants: BracketSlot[];
 };
 
 export class MatchService implements IMatchService {
@@ -44,6 +47,10 @@ export class MatchService implements IMatchService {
     return power;
   }
 
+  private isBracketParticipant(slot: BracketSlot): slot is BracketParticipant {
+    return "teamId" in slot;
+  }
+
   private async createBracketMatch(
     tournamentId: number,
     left: BracketParticipant,
@@ -53,43 +60,43 @@ export class MatchService implements IMatchService {
       tournament_id: tournamentId,
       team1_id: left.teamId,
       team2_id: right.teamId,
-      winner_team_id: null,
-      next_match_id: null,
-      next_match_slot: null,
-      loser_next_match_id: null,
-      loser_next_match_slot: null,
+      winner_team_id: 0,
+      next_match_id: 0,
+      next_match_slot: "",
+      loser_next_match_id: 0,
+      loser_next_match_slot: "",
       status: "scheduled",
       scheduled_at: new Date(),
-      result: null,
+      result: "",
     });
   }
 
   private async createBracketStage(
     tournamentId: number,
-    participants: Array<BracketParticipant | null>
+    participants: BracketSlot[]
   ): Promise<BracketStageResult> {
     const createdMatches: Match[] = [];
-    const nextParticipants: Array<BracketParticipant | null> = [];
+    const nextParticipants: BracketSlot[] = [];
 
     for (let index = 0; index < participants.length; index += 2) {
-      const left = participants[index] ?? null;
-      const right = participants[index + 1] ?? null;
+      const left = participants[index] ?? {};
+      const right = participants[index + 1] ?? {};
 
-      if (!left && !right) {
+      if (!this.isBracketParticipant(left) && !this.isBracketParticipant(right)) {
         continue;
       }
 
-      if (left && !right) {
+      if (this.isBracketParticipant(left) && !this.isBracketParticipant(right)) {
         nextParticipants.push(left);
         continue;
       }
 
-      if (!left && right) {
+      if (!this.isBracketParticipant(left) && this.isBracketParticipant(right)) {
         nextParticipants.push(right);
         continue;
       }
 
-      if (!left || !right) {
+      if (!this.isBracketParticipant(left) || !this.isBracketParticipant(right)) {
         continue;
       }
 
@@ -134,12 +141,12 @@ export class MatchService implements IMatchService {
       team1_id: team1Id,
       team2_id: team2Id,
       scheduled_at: new Date(),
-      result: null,
-      winner_team_id: null,
-      next_match_id: null,
-      next_match_slot: null,
-      loser_next_match_id: null,
-      loser_next_match_slot: null,
+      result: "",
+      winner_team_id: 0,
+      next_match_id: 0,
+      next_match_slot: "",
+      loser_next_match_id: 0,
+      loser_next_match_slot: "",
       status: "scheduled"
     });
   }
@@ -154,18 +161,18 @@ export class MatchService implements IMatchService {
 
   private async generateSingleEliminationMatches(tournamentId: number, teamIds: number[]): Promise<void> {
     const bracketSize = this.nextPowerOfTwo(teamIds.length);
-    const bracketSlots: Array<BracketParticipant | null> = [...teamIds.map((teamId) => ({
+    const bracketSlots: BracketSlot[] = [...teamIds.map((teamId) => ({
       teamId,
       sourceKind: "team" as const,
     }))];
 
     while (bracketSlots.length < bracketSize) {
-      bracketSlots.push(null);
+      bracketSlots.push({});
     }
 
-    let currentRound: Array<BracketParticipant | null> = bracketSlots;
+    let currentRound: BracketSlot[] = bracketSlots;
 
-    while (currentRound.filter((participant) => participant !== null).length > 1) {
+    while (currentRound.filter((participant) => this.isBracketParticipant(participant)).length > 1) {
       const roundResult = await this.createBracketStage(tournamentId, currentRound);
       currentRound = roundResult.nextParticipants;
     }
@@ -173,30 +180,30 @@ export class MatchService implements IMatchService {
 
   private async generateDoubleEliminationMatches(tournamentId: number, teamIds: number[]): Promise<void> {
     const bracketSize = this.nextPowerOfTwo(teamIds.length);
-    const initialParticipants: Array<BracketParticipant | null> = [...teamIds.map((teamId) => ({
+    const initialParticipants: BracketSlot[] = [...teamIds.map((teamId) => ({
       teamId,
       sourceKind: "team" as const,
     }))];
 
     while (initialParticipants.length < bracketSize) {
-      initialParticipants.push(null);
+      initialParticipants.push({});
     }
 
     const winnersRounds: Match[][] = [];
-    let currentWinnersRound: Array<BracketParticipant | null> = initialParticipants;
+    let currentWinnersRound: BracketSlot[] = initialParticipants;
 
-    while (currentWinnersRound.filter((participant) => participant !== null).length > 1) {
+    while (currentWinnersRound.filter((participant) => this.isBracketParticipant(participant)).length > 1) {
       const roundResult = await this.createBracketStage(tournamentId, currentWinnersRound);
       winnersRounds.push(roundResult.createdMatches);
       currentWinnersRound = roundResult.nextParticipants;
     }
 
-    const winnersChampion = currentWinnersRound[0] ?? null;
+    const winnersChampion = currentWinnersRound.find((participant): participant is BracketParticipant => this.isBracketParticipant(participant));
     if (!winnersChampion) {
       return;
     }
 
-    let losersRoundParticipants: Array<BracketParticipant | null> = [];
+    let losersRoundParticipants: BracketSlot[] = [];
 
     for (let roundIndex = 0; roundIndex < Math.max(0, winnersRounds.length - 1); roundIndex += 1) {
       const losersFromThisWinnersRound = winnersRounds[roundIndex].map((match) => ({
@@ -228,12 +235,12 @@ export class MatchService implements IMatchService {
       losersRoundParticipants = finalLosersStage.nextParticipants;
     }
 
-    while (losersRoundParticipants.filter((participant) => participant !== null).length > 1) {
+    while (losersRoundParticipants.filter((participant) => this.isBracketParticipant(participant)).length > 1) {
       const collapseStage = await this.createBracketStage(tournamentId, losersRoundParticipants);
       losersRoundParticipants = collapseStage.nextParticipants;
     }
 
-    const losersChampion = losersRoundParticipants[0] ?? null;
+    const losersChampion = losersRoundParticipants.find((participant): participant is BracketParticipant => this.isBracketParticipant(participant));
     if (!losersChampion) {
       return;
     }
@@ -267,7 +274,7 @@ export class MatchService implements IMatchService {
   async getMatchById(matchId: number): Promise<Result<MatchDto>> {
     try {
       const match = await this.matchReadRepo.findById(matchId);
-      if (!match) {
+      if (!match.match_id) {
         return { success: false, error: "Match not found", statusCode: 404 };
       }
 
@@ -300,7 +307,7 @@ export class MatchService implements IMatchService {
       
     const match = await this.matchReadRepo.findById(matchId);
 
-      if (!match) {
+      if (!match.match_id) {
         return {
           success: false,
           error: "Match not found",
@@ -345,7 +352,7 @@ export class MatchService implements IMatchService {
       }
 
       this.logger.info("MatchService", `Admin ${adminId} updated result for match ${matchId} to ${dto.result}`);
-      return { success: true, data: undefined };
+      return { success: true };
     } catch (err) {
       this.logger.error("MatchService", "updateMatchResult failed", String(err));
       return { success: false, error: "Failed to update match result", statusCode: 500 };
@@ -378,7 +385,7 @@ export class MatchService implements IMatchService {
       }
 
       this.logger.info("MatchService", `Player ${userId} added to match ${matchId} by captain ${captainId}`);
-      return { success: true, data: undefined };
+      return { success: true };
     } catch (err) {
       this.logger.error("MatchService", "addPlayerToMatch failed", String(err));
       return { success: false, error: "Failed to add player to match", statusCode: 500 };
@@ -406,7 +413,7 @@ export class MatchService implements IMatchService {
       }
 
       this.logger.info("MatchService", `Player ${userId} removed from match ${matchId} by captain ${captainId}`);
-      return { success: true, data: undefined };
+      return { success: true };
     } catch (err) {
       this.logger.error("MatchService", "removePlayerFromMatch failed", String(err));
       return { success: false, error: "Failed to remove player from match", statusCode: 500 };
@@ -417,7 +424,7 @@ export class MatchService implements IMatchService {
     try {
       const tournament = await this.tournamentReadRepo.findById(tournamentId);
 
-      if (!tournament) {
+      if (!tournament.tournament_id) {
         return {
           success: false,
           error: "Tournament not found",
@@ -429,7 +436,6 @@ export class MatchService implements IMatchService {
       if (existingMatches.length > 0) {
         return {
           success: true,
-          data: undefined
         };
       }
 
@@ -455,7 +461,6 @@ export class MatchService implements IMatchService {
 
       return {
         success: true,
-        data: undefined
       };
 
     } catch (err) {

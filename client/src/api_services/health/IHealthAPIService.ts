@@ -5,7 +5,7 @@ export type HealthNode = {
   host: string;
   port: number;
   status: "healthy" | "degraded" | "unreachable";
-  lastCheck?: string | null;
+  lastCheck?: string;
   successfulWrites: number;
   failedWrites: number;
 };
