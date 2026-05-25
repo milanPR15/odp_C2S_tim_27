@@ -123,13 +123,17 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
            tr.id,
            tr.tournament_id,
            tr.team_id,
-           COALESCE(t.team_name, '') AS team_name,
+           COALESCE((
+             SELECT t.team_name
+             FROM team t
+             WHERE t.team_id = tr.team_id
+             LIMIT 1
+           ), '') AS team_name,
            COALESCE(tr.selected_player_ids, '') AS selected_player_ids,
            tr.status,
            COALESCE(tr.seed, 0) AS seed,
            tr.registered_at
          FROM tournament_registrations tr
-         JOIN team t ON t.team_id = tr.team_id
          WHERE tr.tournament_id = ?
          ORDER BY tr.registered_at ASC`,
         [tournamentId]

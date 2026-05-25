@@ -36,9 +36,13 @@ export class TeamReadRepository implements ITeamReadRepository {
 
     try {
       const [rows] = await conn.execute<RowDataPacket[]>(`
-        SELECT t.* FROM team t
-        JOIN team_members tm ON t.team_id = tm.team_id
-        WHERE tm.user_id = ?
+        SELECT *
+        FROM team
+        WHERE team_id IN (
+          SELECT team_id
+          FROM team_members
+          WHERE user_id = ?
+        )
       `, [userId]);
 
       return rows.map((row) => Team.fromDB(row));
@@ -98,13 +102,41 @@ export class TeamReadRepository implements ITeamReadRepository {
         `
         SELECT t.*
         FROM team t
-        JOIN tournament_registrations tr
-          ON t.team_id = tr.team_id
-        WHERE tr.tournament_id = ?
-          AND tr.status = 'confirmed'
-        ORDER BY COALESCE(tr.seed, 2147483647) ASC, tr.registered_at ASC, tr.id ASC
+        WHERE t.team_id IN (
+          SELECT tr.team_id
+          FROM tournament_registrations tr
+          WHERE tr.tournament_id = ?
+            AND tr.status = 'confirmed'
+        )
+        ORDER BY COALESCE((
+          SELECT tr.seed
+          FROM tournament_registrations tr
+          WHERE tr.tournament_id = ?
+            AND tr.team_id = t.team_id
+            AND tr.status = 'confirmed'
+          ORDER BY tr.seed IS NULL, tr.seed ASC, tr.registered_at ASC, tr.id ASC
+          LIMIT 1
+        ), 2147483647) ASC,
+        COALESCE((
+          SELECT tr.registered_at
+          FROM tournament_registrations tr
+          WHERE tr.tournament_id = ?
+            AND tr.team_id = t.team_id
+            AND tr.status = 'confirmed'
+          ORDER BY tr.seed IS NULL, tr.seed ASC, tr.registered_at ASC, tr.id ASC
+          LIMIT 1
+        ), CURRENT_TIMESTAMP) ASC,
+        COALESCE((
+          SELECT tr.id
+          FROM tournament_registrations tr
+          WHERE tr.tournament_id = ?
+            AND tr.team_id = t.team_id
+            AND tr.status = 'confirmed'
+          ORDER BY tr.seed IS NULL, tr.seed ASC, tr.registered_at ASC, tr.id ASC
+          LIMIT 1
+        ), 2147483647) ASC
         `,
-        [tournamentId]
+        [tournamentId, tournamentId, tournamentId, tournamentId]
       );
       return rows.map(r => TeamMapper.fromRow(r));
     } finally {
@@ -121,9 +153,11 @@ export class TeamReadRepository implements ITeamReadRepository {
         `
         SELECT DISTINCT t.*
         FROM team t
-        JOIN tournament_registrations tr
-          ON t.team_id = tr.team_id
-        WHERE tr.tournament_id = ?
+        WHERE t.team_id IN (
+          SELECT tr.team_id
+          FROM tournament_registrations tr
+          WHERE tr.tournament_id = ?
+        )
         `,
         [tournamentId]
       );
