@@ -349,18 +349,22 @@ async function forwardWithFallback(
   body: Buffer,
   response: ServerResponse,
 ): Promise<void> {
-  let lastError: unknown;
+  let lastError: Error = new Error("No backend targets available");
 
   for (const candidate of candidates) {
     try {
       await forwardOnce(candidate, requestMeta, body, response);
       return;
     } catch (error) {
-      lastError = error;
+      if (error instanceof Error) {
+        lastError = error;
+      } else {
+        lastError = new Error(String(error));
+      }
     }
   }
 
-  throw lastError instanceof Error ? lastError : new Error("No backend available");
+  throw lastError ?? new Error("No backend available");
 }
 
 const targets = parseTargets();
