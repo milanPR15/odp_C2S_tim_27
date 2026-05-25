@@ -162,6 +162,8 @@ CREATE TABLE IF NOT EXISTS matches (
   winner_team_id INT UNSIGNED DEFAULT NULL,
   next_match_id  INT UNSIGNED DEFAULT NULL,
   next_match_slot ENUM('team1','team2') DEFAULT NULL,
+  loser_next_match_id INT UNSIGNED DEFAULT NULL,
+  loser_next_match_slot ENUM('team1','team2') DEFAULT NULL,
   status ENUM('scheduled','ongoing','completed') DEFAULT 'scheduled',
   scheduled_at   DATETIME NOT NULL,
   result         VARCHAR(20) DEFAULT NULL,
@@ -174,7 +176,8 @@ CREATE TABLE IF NOT EXISTS matches (
   FOREIGN KEY (team1_id) REFERENCES team(team_id) ON DELETE CASCADE,
   FOREIGN KEY (team2_id) REFERENCES team(team_id) ON DELETE CASCADE,
   FOREIGN KEY (winner_team_id) REFERENCES team(team_id) ON DELETE SET NULL,
-  FOREIGN KEY (next_match_id) REFERENCES matches(match_id) ON DELETE SET NULL
+  FOREIGN KEY (next_match_id) REFERENCES matches(match_id) ON DELETE SET NULL,
+  FOREIGN KEY (loser_next_match_id) REFERENCES matches(match_id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS match_players (

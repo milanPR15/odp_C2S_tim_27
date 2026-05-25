@@ -9,6 +9,18 @@ import { Result } from "../../Domain/types/Result";
 import { ILoggerService } from "../../Domain/services/logger/ILoggerService";
 import { TournamentFormat } from "../../Domain/enums/TournamentFormat";
 import { Team } from "../../Domain/models/Team";
+import { Match } from "../../Domain/models/Match";
+
+type BracketParticipant = {
+  teamId: number;
+  matchId?: number;
+  sourceKind: "team" | "winner" | "loser";
+};
+
+type BracketStageResult = {
+  createdMatches: Match[];
+  nextParticipants: Array<BracketParticipant | null>;
+};
 
 export class MatchService implements IMatchService {
 
@@ -24,6 +36,98 @@ export class MatchService implements IMatchService {
     return [...teams].sort(() => Math.random() - 0.5);
   }
 
+  private nextPowerOfTwo(value: number): number {
+    let power = 1;
+    while (power < value) {
+      power *= 2;
+    }
+    return power;
+  }
+
+  private async createBracketMatch(
+    tournamentId: number,
+    left: BracketParticipant,
+    right: BracketParticipant
+  ): Promise<Match> {
+    return this.matchWriteRepo.create({
+      tournament_id: tournamentId,
+      team1_id: left.teamId,
+      team2_id: right.teamId,
+      winner_team_id: null,
+      next_match_id: null,
+      next_match_slot: null,
+      loser_next_match_id: null,
+      loser_next_match_slot: null,
+      status: "scheduled",
+      scheduled_at: new Date(),
+      result: null,
+    });
+  }
+
+  private async createBracketStage(
+    tournamentId: number,
+    participants: Array<BracketParticipant | null>
+  ): Promise<BracketStageResult> {
+    const createdMatches: Match[] = [];
+    const nextParticipants: Array<BracketParticipant | null> = [];
+
+    for (let index = 0; index < participants.length; index += 2) {
+      const left = participants[index] ?? null;
+      const right = participants[index + 1] ?? null;
+
+      if (!left && !right) {
+        continue;
+      }
+
+      if (left && !right) {
+        nextParticipants.push(left);
+        continue;
+      }
+
+      if (!left && right) {
+        nextParticipants.push(right);
+        continue;
+      }
+
+      if (!left || !right) {
+        continue;
+      }
+
+      const parentMatch = await this.createBracketMatch(tournamentId, left, right);
+      createdMatches.push(parentMatch);
+
+      await this.linkParticipantToParent(left, parentMatch.match_id, "team1");
+      await this.linkParticipantToParent(right, parentMatch.match_id, "team2");
+
+      nextParticipants.push({
+        teamId: left.teamId,
+        matchId: parentMatch.match_id,
+        sourceKind: "winner",
+      });
+    }
+
+    return { createdMatches, nextParticipants };
+  }
+
+  private async linkParticipantToParent(
+    participant: BracketParticipant,
+    parentMatchId: number,
+    slot: 'team1' | 'team2'
+  ): Promise<void> {
+    if (!participant.matchId) {
+      return;
+    }
+
+    if (participant.sourceKind === "winner") {
+      await this.matchWriteRepo.updateNextMatch(participant.matchId, parentMatchId, slot);
+      return;
+    }
+
+    if (participant.sourceKind === "loser") {
+      await this.matchWriteRepo.updateLoserNextMatch(participant.matchId, parentMatchId, slot);
+    }
+  }
+
   private async createScheduledMatch(tournamentId: number, team1Id: number, team2Id: number): Promise<void> {
     await this.matchWriteRepo.create({
       tournament_id: tournamentId,
@@ -34,6 +138,8 @@ export class MatchService implements IMatchService {
       winner_team_id: null,
       next_match_id: null,
       next_match_slot: null,
+      loser_next_match_id: null,
+      loser_next_match_slot: null,
       status: "scheduled"
     });
   }
@@ -47,35 +153,92 @@ export class MatchService implements IMatchService {
   }
 
   private async generateSingleEliminationMatches(tournamentId: number, teamIds: number[]): Promise<void> {
-    const shuffledTeams = this.shuffleTeams(teamIds);
+    const bracketSize = this.nextPowerOfTwo(teamIds.length);
+    const bracketSlots: Array<BracketParticipant | null> = [...teamIds.map((teamId) => ({
+      teamId,
+      sourceKind: "team" as const,
+    }))];
 
-    for (let i = 0; i < shuffledTeams.length; i += 2) {
-      const team1Id = shuffledTeams[i];
-      const team2Id = shuffledTeams[i + 1];
+    while (bracketSlots.length < bracketSize) {
+      bracketSlots.push(null);
+    }
 
-      if (!team2Id) {
-        continue;
-      }
+    let currentRound: Array<BracketParticipant | null> = bracketSlots;
 
-      await this.createScheduledMatch(tournamentId, team1Id, team2Id);
+    while (currentRound.filter((participant) => participant !== null).length > 1) {
+      const roundResult = await this.createBracketStage(tournamentId, currentRound);
+      currentRound = roundResult.nextParticipants;
     }
   }
 
   private async generateDoubleEliminationMatches(tournamentId: number, teamIds: number[]): Promise<void> {
-    const shuffledTeams = this.shuffleTeams(teamIds);
+    const bracketSize = this.nextPowerOfTwo(teamIds.length);
+    const initialParticipants: Array<BracketParticipant | null> = [...teamIds.map((teamId) => ({
+      teamId,
+      sourceKind: "team" as const,
+    }))];
 
-    for (let i = 0; i < shuffledTeams.length; i += 2) {
-      const team1Id = shuffledTeams[i];
-      const team2Id = shuffledTeams[i + 1];
-
-      if (!team2Id) {
-        continue;
-      }
-
-      await this.createScheduledMatch(tournamentId, team1Id, team2Id);
-      await this.createScheduledMatch(tournamentId, team1Id, team2Id);
-      await this.createScheduledMatch(tournamentId, team1Id, team2Id);
+    while (initialParticipants.length < bracketSize) {
+      initialParticipants.push(null);
     }
+
+    const winnersRounds: Match[][] = [];
+    let currentWinnersRound: Array<BracketParticipant | null> = initialParticipants;
+
+    while (currentWinnersRound.filter((participant) => participant !== null).length > 1) {
+      const roundResult = await this.createBracketStage(tournamentId, currentWinnersRound);
+      winnersRounds.push(roundResult.createdMatches);
+      currentWinnersRound = roundResult.nextParticipants;
+    }
+
+    const winnersChampion = currentWinnersRound[0] ?? null;
+    if (!winnersChampion) {
+      return;
+    }
+
+    let losersRoundParticipants: Array<BracketParticipant | null> = [];
+
+    for (let roundIndex = 0; roundIndex < Math.max(0, winnersRounds.length - 1); roundIndex += 1) {
+      const losersFromThisWinnersRound = winnersRounds[roundIndex].map((match) => ({
+        teamId: match.team1_id,
+        matchId: match.match_id,
+        sourceKind: "loser" as const,
+      }));
+
+      const stageParticipants = roundIndex === 0
+        ? losersFromThisWinnersRound
+        : [...losersRoundParticipants, ...losersFromThisWinnersRound];
+
+      const stageResult = await this.createBracketStage(tournamentId, stageParticipants);
+      losersRoundParticipants = stageResult.nextParticipants;
+    }
+
+    const finalWinnersRound = winnersRounds[winnersRounds.length - 1] ?? [];
+    const losersFromFinalWinnersRound = finalWinnersRound.map((match) => ({
+      teamId: match.team1_id,
+      matchId: match.match_id,
+      sourceKind: "loser" as const,
+    }));
+
+    if (losersFromFinalWinnersRound.length > 0) {
+      const finalLosersStage = await this.createBracketStage(
+        tournamentId,
+        [...losersRoundParticipants, ...losersFromFinalWinnersRound]
+      );
+      losersRoundParticipants = finalLosersStage.nextParticipants;
+    }
+
+    while (losersRoundParticipants.filter((participant) => participant !== null).length > 1) {
+      const collapseStage = await this.createBracketStage(tournamentId, losersRoundParticipants);
+      losersRoundParticipants = collapseStage.nextParticipants;
+    }
+
+    const losersChampion = losersRoundParticipants[0] ?? null;
+    if (!losersChampion) {
+      return;
+    }
+
+    await this.createBracketStage(tournamentId, [winnersChampion, losersChampion]);
   }
 
   async getMatchesByTournament(tournamentId: number): Promise<Result<MatchDto[]>> {
@@ -87,7 +250,12 @@ export class MatchService implements IMatchService {
         m.team1_id,
         m.team2_id,
         m.scheduled_at,
-        m.result
+        m.result,
+        m.next_match_id,
+        m.next_match_slot,
+        m.loser_next_match_id,
+        m.loser_next_match_slot,
+        m.status
       ));
       return { success: true, data: dtos };
     } catch (err) {
@@ -109,7 +277,12 @@ export class MatchService implements IMatchService {
         match.team1_id,
         match.team2_id,
         match.scheduled_at,
-        match.result
+        match.result,
+        match.next_match_id,
+        match.next_match_slot,
+        match.loser_next_match_id,
+        match.loser_next_match_slot,
+        match.status
       );
       return { success: true, data: dto };
     } catch (err) {
@@ -155,6 +328,15 @@ export class MatchService implements IMatchService {
           match.next_match_id,
           match.next_match_slot,
           winnerTeamId
+        );
+      }
+
+      if (success && match.loser_next_match_id && match.loser_next_match_slot) {
+        const loserTeamId = winnerTeamId === match.team1_id ? match.team2_id : match.team1_id;
+        await this.matchWriteRepo.advanceLoserToNextMatch(
+          match.loser_next_match_id,
+          match.loser_next_match_slot,
+          loserTeamId
         );
       }
 

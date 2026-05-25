@@ -7,6 +7,11 @@ export interface MatchDto {
   team2_id: number | null;
   scheduled_at: string;
   result: string | null;
+  next_match_id?: number | null;
+  next_match_slot?: 'team1' | 'team2' | null;
+  loser_next_match_id?: number | null;
+  loser_next_match_slot?: 'team1' | 'team2' | null;
+  status?: string;
 }
 
 export interface UpdateMatchResultPayload {
