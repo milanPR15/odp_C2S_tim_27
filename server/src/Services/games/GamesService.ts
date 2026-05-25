@@ -34,18 +34,21 @@ export class GameService implements IGamesService {
             return { success: false, error: "Failed to retrieve games", statusCode: 500 };
         }
     }
-    async getById(id: number): Promise<Result<GameDto | null>> {
+    async getById(id: number): Promise<Result<GameDto>> {
         try {
             const game = await this.gamesReadRepository.getById(id);
-            return { success: true, data: game ? this.toGameDto(game) : null };
+            if (game.game_id === 0) {
+                return { success: false, error: "Game not found", statusCode: 404 };
+            }
+            return { success: true, data: this.toGameDto(game) };
         } catch (error) {
             return { success: false, error: "Failed to retrieve game", statusCode: 500 };
         }
     }
-    async create(game: CreateGameDto, userId: number = 0): Promise<Result<GameDto | null>> {
+    async create(game: CreateGameDto, userId: number = 0): Promise<Result<GameDto>> {
         try {
             const existing = await this.gamesReadRepository.getByName(game.title);
-            if (existing) {
+            if (existing.game_id !== 0) {
                 return { success: false, error: `Game with title '${game.title}' already exists`, statusCode: 409 };
             }
 
@@ -67,15 +70,19 @@ export class GameService implements IGamesService {
                 );
             }
 
-            return { success: true, data: created ? this.toGameDto(created) : null };
+            if (created.game_id === 0) {
+                return { success: false, error: "Failed to create game", statusCode: 500 };
+            }
+
+            return { success: true, data: this.toGameDto(created) };
         } catch (error) {
             return { success: false, error: "Failed to create game", statusCode: 500 };
         }
     }
-    async update(id: number, game: GameDto, userId: number = 0): Promise<Result<GameDto | null>> {
+    async update(id: number, game: GameDto, userId: number = 0): Promise<Result<GameDto>> {
         try {
             const existing = await this.gamesReadRepository.getById(id);
-            if (!existing) {
+            if (existing.game_id === 0) {
                 return { success: false, error: "Game not found", statusCode: 404 };
             }
             const success = await this.gamesWriteRepository.update(new Game(
@@ -98,7 +105,10 @@ export class GameService implements IGamesService {
             );
 
             const updated = await this.gamesReadRepository.getById(id);
-            return { success: true, data: updated ? this.toGameDto(updated) : null };
+            if (updated.game_id === 0) {
+                return { success: false, error: "Game not found after update", statusCode: 404 };
+            }
+            return { success: true, data: this.toGameDto(updated) };
         } catch (error) {
             return { success: false, error: "Failed to update game", statusCode: 500 };
         }
@@ -106,7 +116,7 @@ export class GameService implements IGamesService {
     async delete(id: number, userId: number = 0): Promise<Result<boolean>> {
         try {
             const existing = await this.gamesReadRepository.getById(id);
-            if (!existing) {
+            if (existing.game_id === 0) {
                 return { success: false, error: "Game not found", statusCode: 404 };
             }
             const result = await this.gamesWriteRepository.delete(id);

@@ -3,7 +3,7 @@ export class CreateTeamDto {
     public team_name: string,
     public tag: string,
     public logo: string = "",
-    public description: string | null = null,
+    public description: string = "",
     public captan_id: number
   ) {}
 

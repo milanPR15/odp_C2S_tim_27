@@ -12,18 +12,18 @@ export class TeamReadRepository implements ITeamReadRepository {
     private readonly logger: ILoggerService
   ) {}
 
-  async findById(teamId: number): Promise<Team | null> {
+  async findById(teamId: number): Promise<Team> {
     const connResult = await this.db.getReadConnection();
-    if (!connResult) return null;
+    if (!connResult) return new Team();
     const { conn } = connResult;
 
     try {
       const [rows] = await conn.execute<RowDataPacket[]>("SELECT * FROM team WHERE team_id = ?", [teamId]);
       const row = rows[0];
-      return row ? Team.fromDB(row) : null;
+      return row ? Team.fromDB(row) : new Team();
     } catch (err) {
-      this.logger.error("TeamRepository", "findById failed", err);
-      return null;
+      this.logger.error("TeamRepository", "findById failed", err instanceof Error ? err : String(err));
+      return new Team();
     } finally {
       conn.release();
     }
@@ -43,7 +43,7 @@ export class TeamReadRepository implements ITeamReadRepository {
 
       return rows.map((row) => Team.fromDB(row));
     } catch (err) {
-      this.logger.error("TeamRepository", "findByUserId failed", err);
+      this.logger.error("TeamRepository", "findByUserId failed", err instanceof Error ? err : String(err));
       return [];
     } finally {
       conn.release();
@@ -63,7 +63,7 @@ export class TeamReadRepository implements ITeamReadRepository {
 
       return rows.map((row) => TeamMember.fromDB(row));
     } catch (err) {
-      this.logger.error("TeamRepository", "findMembers failed", err);
+      this.logger.error("TeamRepository", "findMembers failed", err instanceof Error ? err : String(err));
       return [];
     } finally {
       conn.release();
@@ -82,7 +82,7 @@ export class TeamReadRepository implements ITeamReadRepository {
       );
       return rows.length > 0;
     } catch (err) {
-      this.logger.error("TeamRepository", "isUserInTeam failed", err);
+      this.logger.error("TeamRepository", "isUserInTeam failed", err instanceof Error ? err : String(err));
       return false;
     } finally {
       conn.release();

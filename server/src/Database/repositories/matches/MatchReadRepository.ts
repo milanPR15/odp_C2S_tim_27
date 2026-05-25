@@ -2,7 +2,7 @@ import { DbManager } from "../../connection/DbConnectionPool";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
 import { Match, MatchRow } from "../../../Domain/models/Match";
 import { MatchPlayer } from "../../../Domain/models/MatchPlayers";
-import { ResultSetHeader } from "mysql2";
+import { ResultSetHeader, RowDataPacket } from "mysql2";
 import { IMatchReadRepository } from "../../../Domain/repositories/matches/IMatchReadRepository";
 
 export class MatchReadRepository implements IMatchReadRepository{
@@ -21,9 +21,9 @@ export class MatchReadRepository implements IMatchReadRepository{
     }
   }
 
-  async findById(matchId: number): Promise<Match | null> {
+  async findById(matchId: number): Promise<Match> {
     const connResult = await this.db.getReadConnection();
-    if (!connResult) return null;
+    if (!connResult) return new Match();
     const { conn } = connResult;
 
     try {
@@ -32,7 +32,7 @@ export class MatchReadRepository implements IMatchReadRepository{
         [matchId]
       );
       const row = (rows as MatchRow[])[0];
-      return row ? Match.fromDB(row) : null;
+      return row ? Match.fromDB(row) : new Match();
     } finally {
       conn.release();
     }
@@ -48,7 +48,7 @@ export class MatchReadRepository implements IMatchReadRepository{
         "SELECT * FROM match_players WHERE match_id = ?",
         [matchId]
       );
-      return (rows as MatchPlayer[]).map((row) => MatchPlayer.fromDB(row));
+      return (rows as RowDataPacket[]).map((row) => MatchPlayer.fromDB(row));
     } finally {
       conn.release();
     }

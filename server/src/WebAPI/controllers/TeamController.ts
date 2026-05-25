@@ -47,7 +47,7 @@ export class TeamController {
       req.body.team_name,
       req.body.tag,
       req.body.logo || "",
-      req.body.description || null,
+      req.body.description || "",
       req.body.captan_id
     );
 

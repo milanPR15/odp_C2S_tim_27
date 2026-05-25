@@ -22,7 +22,7 @@ export class UserWriteRepository implements IUserWriteRepository {
       if (result.insertId === 0) return new User();
       return new User(result.insertId, user.gamer_tag, user.full_name, user.email, user.role, user.passwordHash);
     } catch (err) {
-      this.logger.error("UserRepository", "create failed", err);
+      this.logger.error("UserRepository", "create failed", err instanceof Error ? err : String(err));
       return new User();
     } finally { res.conn.release(); }
   }
@@ -37,7 +37,7 @@ export class UserWriteRepository implements IUserWriteRepository {
       );
       return result.affectedRows > 0;
     } catch (err) {
-      this.logger.error("UserRepository", "update failed", err);
+      this.logger.error("UserRepository", "update failed", err instanceof Error ? err : String(err));
       return false;
     } finally { res.conn.release(); }
   }
@@ -51,7 +51,7 @@ export class UserWriteRepository implements IUserWriteRepository {
       );
       return result.affectedRows > 0;
     } catch (err) {
-      this.logger.error("UserRepository", "deactivate failed", err);
+      this.logger.error("UserRepository", "deactivate failed", err instanceof Error ? err : String(err));
       return false;
     } finally { res.conn.release(); }
   }
@@ -91,7 +91,7 @@ export class UserWriteRepository implements IUserWriteRepository {
       }
       return success;
     } catch (err) {
-      this.logger.error("UserRepository", "updateProfile failed", err);
+      this.logger.error("UserRepository", "updateProfile failed", err instanceof Error ? err : String(err));
       return false;
     } finally {
       conn.release();

@@ -16,7 +16,7 @@ export class AuditLogWriteRepository  implements IAuditLogWriteRepository{
         [log.user_id, log.action, log.entity, log.entity_id, log.meta, log.ip_address]
       );
     } catch (err) {
-      this.logger.error("AuditLogWriteRepository", "create failed", err);
+      this.logger.error("AuditLogWriteRepository", "create failed", err instanceof Error ? err : String(err));
     } finally {
       res.conn.release();
     }

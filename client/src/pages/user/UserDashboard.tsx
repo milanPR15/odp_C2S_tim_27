@@ -1,7 +1,7 @@
 import { PageHeader } from "../../components/ui/UI";
 import { useAuth } from "../../hooks/auth/useAuthHook";
 
-// TODO: Replace with your domain-specific user dashboard content
+//Replace with your domain-specific user dashboard content
 export default function UserDashboard() {
   const { user } = useAuth();
   return (

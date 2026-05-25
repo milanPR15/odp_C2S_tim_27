@@ -36,7 +36,7 @@ export class TeamWriteRepository implements ITeamWriteRepository{
       const [rows] = await conn.execute<RowDataPacket[]>("SELECT * FROM team WHERE team_id = ?", [teamId]);
       return Team.fromDB(rows[0]);
     } catch (err) {
-      this.logger.error("TeamRepository", "create failed", err);
+      this.logger.error("TeamRepository", "create failed", err instanceof Error ? err : String(err));
       return new Team();
     } finally {
       conn.release();
@@ -59,7 +59,7 @@ export class TeamWriteRepository implements ITeamWriteRepository{
       );
       return result.affectedRows > 0;
     } catch (err) {
-      this.logger.error("TeamRepository", "update failed", err);
+      this.logger.error("TeamRepository", "update failed", err instanceof Error ? err : String(err));
       return false;
     } finally {
       conn.release();
@@ -75,7 +75,7 @@ export class TeamWriteRepository implements ITeamWriteRepository{
       const [result] = await conn.execute<ResultSetHeader>("DELETE FROM team WHERE team_id = ?", [teamId]);
       return result.affectedRows > 0;
     } catch (err) {
-      this.logger.error("TeamRepository", "delete failed", err);
+      this.logger.error("TeamRepository", "delete failed", err instanceof Error ? err : String(err));
       return false;
     } finally {
       conn.release();
@@ -95,7 +95,7 @@ export class TeamWriteRepository implements ITeamWriteRepository{
       );
       return true;
     } catch (err) {
-      this.logger.error("TeamRepository", "addMember failed", err);
+      this.logger.error("TeamRepository", "addMember failed", err instanceof Error ? err : String(err));
       return false;
     } finally {
       conn.release();
@@ -115,7 +115,7 @@ export class TeamWriteRepository implements ITeamWriteRepository{
       );
       return result.affectedRows > 0;
     } catch (err) {
-      this.logger.error("TeamRepository", "removeMember failed", err);
+      this.logger.error("TeamRepository", "removeMember failed", err instanceof Error ? err : String(err));
       return false;
     } finally {
       conn.release();
@@ -124,7 +124,46 @@ export class TeamWriteRepository implements ITeamWriteRepository{
 
 
   async changeCaptain(teamId: number, newCaptainId: number): Promise<boolean> {
-    return false; // kasnije ćemo implementirati
+    const connResult = await this.db.getWriteConnection();
+    if (!connResult) return false;
+
+    const { conn } = connResult;
+    try {
+      await conn.beginTransaction();
+
+      const [demoteResult] = await conn.execute<ResultSetHeader>(
+        `UPDATE team_members
+         SET role = 'member'
+         WHERE team_id = ? AND role = 'captain'`,
+        [teamId]
+      );
+
+      if (demoteResult.affectedRows === 0) {
+        await conn.rollback();
+        return false;
+      }
+
+      const [promoteResult] = await conn.execute<ResultSetHeader>(
+        `UPDATE team_members
+         SET role = 'captain'
+         WHERE team_id = ? AND user_id = ?`,
+        [teamId, newCaptainId]
+      );
+
+      if (promoteResult.affectedRows === 0) {
+        await conn.rollback();
+        return false;
+      }
+
+      await conn.commit();
+      return true;
+    } catch (err) {
+      await conn.rollback();
+      this.logger.error("TeamRepository", "changeCaptain failed", err instanceof Error ? err : String(err));
+      return false;
+    } finally {
+      conn.release();
+    }
   }
 
   

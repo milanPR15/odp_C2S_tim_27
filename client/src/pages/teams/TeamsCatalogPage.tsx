@@ -10,7 +10,7 @@ export default function TeamsCatalogPage() {
   const [invitations, setInvitations] = useState<TeamInvitationDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [inviteProcessId, setInviteProcessId] = useState<number | null>(null);
+  const [inviteProcessId, setInviteProcessId] = useState<number>(0);
 
   useEffect(() => {
     let active = true;
@@ -50,11 +50,13 @@ export default function TeamsCatalogPage() {
   }, []);
 
   const handleRespondToInvite = async (teamId: number, accept: boolean) => {
+    if (teamId === 0) return;
+
     setInviteProcessId(teamId);
     setError("");
     
     const res = await teamsApi.respondToInvite(teamId, accept);
-    setInviteProcessId(null);
+    setInviteProcessId(0);
     
     if (!res.success) {
       setError(res.message || "Failed to respond to invitation.");

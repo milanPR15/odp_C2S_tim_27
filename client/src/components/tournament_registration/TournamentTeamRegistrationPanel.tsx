@@ -17,8 +17,8 @@ export function TournamentTeamRegistrationPanel({ tournament, onRegistered }: Pr
   const { user } = useAuth();
 
   const [teams, setTeams] = useState<TeamDto[]>([]);
-  const [game, setGame] = useState<GameDto | null>(null);
-  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
+  const [game, setGame] = useState<GameDto>({} as GameDto);
+  const [selectedTeamId, setSelectedTeamId] = useState<number>(0);
   const [selectedPlayerIdsByTeam, setSelectedPlayerIdsByTeam] = useState<Record<number, number[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,10 +73,27 @@ export function TournamentTeamRegistrationPanel({ tournament, onRegistered }: Pr
     return () => {
       active = false;
     };
-  }, [user?.id]);
+  }, [user?.id, tournament.game_id]);
 
-  const selectedTeam = teams.find((team) => team.team_id === selectedTeamId) ?? null;
-  const selectedPlayerIds = selectedTeam ? (selectedPlayerIdsByTeam[selectedTeam.team_id] ?? selectedTeam.members?.map((member) => member.user_id) ?? []) : [];
+  const EMPTY_TEAM: TeamDto = {
+    team_id: 0,
+    team_name: "",
+    tag: "",
+    logo: "",
+    description: "",
+    captain_id: 0,
+    captain_gamer_tag: "",
+    num_members: 0,
+    createdAt: "",
+    members: [],
+  };
+
+  const selectedTeam = teams.find((team) => team.team_id === selectedTeamId) || EMPTY_TEAM;
+  const selectedPlayerIds = selectedTeam.team_id !== 0
+    ? (selectedPlayerIdsByTeam[selectedTeam.team_id]
+      ? selectedPlayerIdsByTeam[selectedTeam.team_id]
+      : (selectedTeam.members ? selectedTeam.members.map((member) => member.user_id) : []))
+    : [];
 
   function selectTeam(team: TeamDto) {
     setSelectedTeamId(team.team_id);

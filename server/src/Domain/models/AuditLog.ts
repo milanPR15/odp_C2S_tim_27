@@ -5,8 +5,8 @@ export class AuditLog{
         public action: string = "",
         public entity: string = "",
         public entity_id: number = 0,
-        public meta: string | null = null,
-        public ip_address: string | null = null,
+        public meta: string = "",
+        public ip_address: string = "",
         public created_at: Date = new Date()
     ){}
 }

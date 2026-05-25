@@ -18,7 +18,7 @@ export function TeamCreateForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [logoFileName, setLogoFileName] = useState("");
-  const logoInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>({} as HTMLInputElement);
 
   const isValid = useMemo(() => {
     return form.team_name.trim().length >= 2

@@ -10,10 +10,10 @@ type TournamentRegistrationRow = RowDataPacket & {
   id: number;
   tournament_id: number;
   team_id: number;
-  team_name?: string;
-  selected_player_ids: string | null;
+  team_name: string;
+  selected_player_ids: string;
   status: string;
-  seed: number | null;
+  seed: number;
   registered_at: Date | string;
 };
 
@@ -24,21 +24,21 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
   ) {}
 
   private fromRow(row: TournamentRegistrationRow): TournamentRegistration {
-    const selectedPlayerIds = row.selected_player_ids ? JSON.parse(row.selected_player_ids) as number[] : [];
+    const selectedPlayerIds = row.selected_player_ids === "" ? [] : JSON.parse(row.selected_player_ids) as number[];
 
     return new TournamentRegistration(
       row.id,
       row.tournament_id,
       row.team_id,
-      row.status as any,
-      row.seed,
+      row.status as RegistrationStatus,
+      row.seed ?? 0,
       row.registered_at instanceof Date ? row.registered_at : new Date(row.registered_at),
       selectedPlayerIds
     );
   }
 
   private fromDtoRow(row: TournamentRegistrationRow): TournamentRegistrationDto {
-    const selectedPlayerIds = row.selected_player_ids ? JSON.parse(row.selected_player_ids) as number[] : [];
+    const selectedPlayerIds = row.selected_player_ids === "" ? [] : JSON.parse(row.selected_player_ids) as number[];
 
     return new TournamentRegistrationDto(
       row.id,
@@ -46,47 +46,67 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
       row.team_id,
       row.team_name ?? "",
       row.status as RegistrationStatus,
-      row.seed,
+      row.seed ?? 0,
       row.registered_at instanceof Date ? row.registered_at : new Date(row.registered_at),
       selectedPlayerIds
     );
   }
 
-  async findById(id: number): Promise<TournamentRegistration | null> {
+  async findById(id: number): Promise<TournamentRegistration> {
     const connResult = await this.db.getReadConnection();
-    if (!connResult) return null;
+    if (!connResult) return new TournamentRegistration();
     const { conn } = connResult;
 
     try {
       const [rows] = await conn.execute<TournamentRegistrationRow[]>(
-        `SELECT * FROM tournament_registrations WHERE id = ? LIMIT 1`,
+        `SELECT
+           id,
+           tournament_id,
+           team_id,
+           COALESCE(selected_player_ids, '') AS selected_player_ids,
+           status,
+           COALESCE(seed, 0) AS seed,
+           registered_at
+         FROM tournament_registrations
+         WHERE id = ?
+         LIMIT 1`,
         [id]
       );
 
-      return rows[0] ? this.fromRow(rows[0]) : null;
-    } catch (err) {
-      this.logger.error("TournamentRegistrationRepository", "findById failed", err);
-      return null;
+      return rows[0] ? this.fromRow(rows[0]) : new TournamentRegistration();
+    } catch (error) {
+      this.logger.error("TournamentRegistrationRepository", "findById failed", error instanceof Error ? error : String(error));
+      return new TournamentRegistration();
     } finally {
       conn.release();
     }
   }
 
-  async findByTournamentAndTeam(tournamentId: number, teamId: number): Promise<TournamentRegistration | null> {
+  async findByTournamentAndTeam(tournamentId: number, teamId: number): Promise<TournamentRegistration> {
     const connResult = await this.db.getReadConnection();
-    if (!connResult) return null;
+    if (!connResult) return new TournamentRegistration();
     const { conn } = connResult;
 
     try {
       const [rows] = await conn.execute<TournamentRegistrationRow[]>(
-        `SELECT * FROM tournament_registrations WHERE tournament_id = ? AND team_id = ? LIMIT 1`,
+        `SELECT
+           id,
+           tournament_id,
+           team_id,
+           COALESCE(selected_player_ids, '') AS selected_player_ids,
+           status,
+           COALESCE(seed, 0) AS seed,
+           registered_at
+         FROM tournament_registrations
+         WHERE tournament_id = ? AND team_id = ?
+         LIMIT 1`,
         [tournamentId, teamId]
       );
 
-      return rows[0] ? this.fromRow(rows[0]) : null;
-    } catch (err) {
-      this.logger.error("TournamentRegistrationRepository", "findByTournamentAndTeam failed", err);
-      return null;
+      return rows[0] ? this.fromRow(rows[0]) : new TournamentRegistration();
+    } catch (error) {
+      this.logger.error("TournamentRegistrationRepository", "findByTournamentAndTeam failed", error instanceof Error ? error : String(error));
+      return new TournamentRegistration();
     } finally {
       conn.release();
     }
@@ -99,7 +119,15 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
 
     try {
       const [rows] = await conn.execute<TournamentRegistrationRow[]>(
-        `SELECT tr.*, t.team_name
+        `SELECT
+           tr.id,
+           tr.tournament_id,
+           tr.team_id,
+           COALESCE(t.team_name, '') AS team_name,
+           COALESCE(tr.selected_player_ids, '') AS selected_player_ids,
+           tr.status,
+           COALESCE(tr.seed, 0) AS seed,
+           tr.registered_at
          FROM tournament_registrations tr
          JOIN team t ON t.team_id = tr.team_id
          WHERE tr.tournament_id = ?
@@ -108,8 +136,8 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
       );
 
       return rows.map((row) => this.fromDtoRow(row));
-    } catch (err) {
-      this.logger.error("TournamentRegistrationRepository", "findByTournament failed", err);
+    } catch (error) {
+      this.logger.error("TournamentRegistrationRepository", "findByTournament failed", error instanceof Error ? error : String(error));
       return [];
     } finally {
       conn.release();
@@ -128,8 +156,8 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
       );
 
       return Number(rows[0]?.count ?? 0);
-    } catch (err) {
-      this.logger.error("TournamentRegistrationRepository", "countByTournament failed", err);
+    } catch (error) {
+      this.logger.error("TournamentRegistrationRepository", "countByTournament failed", error instanceof Error ? error : String(error));
       return 0;
     } finally {
       conn.release();
@@ -148,17 +176,17 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
       );
 
       return Number(rows[0]?.count ?? 0);
-    } catch (err) {
-      this.logger.error("TournamentRegistrationRepository", "countConfirmedByTournament failed", err);
+    } catch (error) {
+      this.logger.error("TournamentRegistrationRepository", "countConfirmedByTournament failed", error instanceof Error ? error : String(error));
       return 0;
     } finally {
       conn.release();
     }
   }
 
-  async create(registration: TournamentRegistration): Promise<TournamentRegistration | null> {
+  async create(registration: TournamentRegistration): Promise<TournamentRegistration> {
     const connResult = await this.db.getWriteConnection();
-    if (!connResult) return null;
+    if (!connResult) return new TournamentRegistration();
     const { conn } = connResult;
 
     try {
@@ -170,21 +198,31 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
           registration.team_id,
           JSON.stringify(registration.selected_player_ids ?? []),
           registration.status,
-          registration.seed,
+          registration.seed ?? 0,
         ]
       );
 
-      if (result.insertId === 0) return null;
+      if (result.insertId === 0) return new TournamentRegistration();
 
       const [rows] = await conn.execute<TournamentRegistrationRow[]>(
-        `SELECT * FROM tournament_registrations WHERE id = ? LIMIT 1`,
+        `SELECT
+           id,
+           tournament_id,
+           team_id,
+           COALESCE(selected_player_ids, '') AS selected_player_ids,
+           status,
+           COALESCE(seed, 0) AS seed,
+           registered_at
+         FROM tournament_registrations
+         WHERE id = ?
+         LIMIT 1`,
         [result.insertId]
       );
 
-      return rows[0] ? this.fromRow(rows[0]) : null;
-    } catch (err) {
-      this.logger.error("TournamentRegistrationRepository", "create failed", err);
-      return null;
+      return rows[0] ? this.fromRow(rows[0]) : new TournamentRegistration();
+    } catch (error) {
+      this.logger.error("TournamentRegistrationRepository", "create failed", error instanceof Error ? error : String(error));
+      return new TournamentRegistration();
     } finally {
       conn.release();
     }
@@ -202,8 +240,8 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
       );
 
       return result.affectedRows > 0;
-    } catch (err) {
-      this.logger.error("TournamentRegistrationRepository", "updateStatus failed", err);
+    } catch (error) {
+      this.logger.error("TournamentRegistrationRepository", "updateStatus failed", error instanceof Error ? error : String(error));
       return false;
     } finally {
       conn.release();

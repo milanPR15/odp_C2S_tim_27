@@ -34,7 +34,7 @@ export class AuditLogService implements IAuditLogService {
         }
     }
 
-    async log(user_id: number, action: string, entity: string, entity_id: number, meta: string | null = null, ip_address: string | null = null): Promise<void> {
+    async log(user_id: number, action: string, entity: string, entity_id: number, meta: string = "", ip_address: string = ""): Promise<void> {
         try {
             await this.auditLogWriteRepository.create({
                 user_id,

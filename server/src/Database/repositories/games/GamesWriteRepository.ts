@@ -7,19 +7,19 @@ import { IGamesWriteRepository } from "../../../Domain/repositories/games/IGames
 export class GameWriteRepository implements IGamesWriteRepository{
   constructor(private readonly db: DbManager, private readonly logger: ILoggerService) {}
 
-  async create(game: Game): Promise<Game | null> {
+  async create(game: Game): Promise<Game> {
     const res = await this.db.getWriteConnection();
-    if (!res) return null;
+    if (!res) return new Game();
     try {
       const [result] = await res.conn.execute<ResultSetHeader>(
         `INSERT INTO games (title, genre, max_players, logo) VALUES (?, ?, ?, ?)`,
         [game.title, game.genre, game.max_players, game.logo]
       );
-      if (result.insertId === 0) return null;
+      if (result.insertId === 0) return new Game();
       return new Game(result.insertId, game.title, game.genre, game.max_players, game.logo);
     } catch (err) {
-      this.logger.error("GameWriteRepository", "create failed", err);
-      return null;
+      this.logger.error("GameWriteRepository", "create failed", err instanceof Error ? err : String(err));
+      return new Game();
     } finally {
       res.conn.release();
     }
@@ -35,7 +35,7 @@ export class GameWriteRepository implements IGamesWriteRepository{
             );
             return result.affectedRows > 0;
         } catch (err) {
-            this.logger.error("GamesWriteRepository", "update failed", err);
+            this.logger.error("GamesWriteRepository", "update failed", err instanceof Error ? err : String(err));
             return false;
         }
         finally { res.conn.release(); }
@@ -49,7 +49,7 @@ export class GameWriteRepository implements IGamesWriteRepository{
             const [result] = await res.conn.execute<ResultSetHeader>(`DELETE FROM games WHERE game_id = ?`, [id]);
             return result.affectedRows > 0;
         } catch (err) {
-            this.logger.error("GamesEriteRepository", "delete failed", err);
+            this.logger.error("GamesWriteRepository", "delete failed", err instanceof Error ? err : String(err));
             return false;
         }
         finally { res.conn.release(); }

@@ -9,8 +9,8 @@ export class AuditLogMapper {
       r.action,
       r.entity,
       r.entity_id,
-      r.meta,
-      r.ip_address,
+      r.meta ?? "",
+      r.ip_address ?? "",
       new Date(r.created_at)
     );
   }

@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { readItem } from "../helpers/local_storage";
 
 export const authHeader = () => {
@@ -6,7 +6,7 @@ export const authHeader = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-export const handleError = <T>(e: unknown, fallback: string): { success: boolean; message: string; data?: T } => ({
+export const handleError = <T>(e: AxiosError, fallback: string): { success: boolean; message: string; data?: T } => ({
   success: false,
   message: axios.isAxiosError(e) ? (e.response?.data as { message?: string })?.message ?? fallback : fallback,
 });

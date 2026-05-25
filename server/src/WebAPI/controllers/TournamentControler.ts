@@ -140,7 +140,7 @@ export class TournamentController {
 
         const dto = new RegisterTournamentTeamDto(
             Number(req.body.teamId),
-            Array.isArray(req.body.playerIds) ? req.body.playerIds.map((value: unknown) => Number(value)) : []
+            Array.isArray(req.body.playerIds) ? req.body.playerIds.map((value: string | number) => Number(value)) : []
         );
 
         const userId = req.user?.id || 0;

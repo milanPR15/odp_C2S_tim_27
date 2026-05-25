@@ -46,13 +46,7 @@ function formatMoney(value: number): string {
   }).format(value);
 }
 
-type BracketMatch = MatchDto & {
-  next_match_id?: number | null;
-  next_match_slot?: "team1" | "team2" | null;
-  loser_next_match_id?: number | null;
-  loser_next_match_slot?: "team1" | "team2" | null;
-  status?: string;
-};
+type BracketMatch = MatchDto;
 
 type BracketRound = {
   label: string;
@@ -68,17 +62,20 @@ type BracketPosition = {
 
 type BracketSlot = "team1" | "team2";
 
-function formatTeamId(teamId: number | null): string {
-  return teamId === null ? "TBD" : `Team ${teamId}`;
+function formatTeamId(teamId: number): string {
+  // treat 0 as unknown slot
+  if (!teamId || teamId === 0) return "TBD";
+  return `Team ${teamId}`;
 }
 
 function isMatchCompleted(match: BracketMatch): boolean {
-  return (match.status ?? (match.result ? "completed" : "scheduled")) === "completed";
+  const state = match.status || (match.result && match.result !== "" ? "completed" : "scheduled");
+  return state === "completed";
 }
 
-function getWinnerTeamId(match: BracketMatch): number | null {
-  if (!isMatchCompleted(match) || !match.result) {
-    return null;
+function getWinnerTeamId(match: BracketMatch): number {
+  if (!isMatchCompleted(match) || !match.result || match.result === "") {
+    return 0;
   }
 
   const [leftScoreRaw, rightScoreRaw] = match.result.split(":");
@@ -86,7 +83,7 @@ function getWinnerTeamId(match: BracketMatch): number | null {
   const rightScore = Number(rightScoreRaw);
 
   if (Number.isNaN(leftScore) || Number.isNaN(rightScore) || leftScore === rightScore) {
-    return null;
+    return 0;
   }
 
   return leftScore > rightScore ? match.team1_id : match.team2_id;
@@ -96,7 +93,8 @@ function buildIncomingSlotLookup(matches: BracketMatch[]): Map<string, BracketMa
   const lookup = new Map<string, BracketMatch>();
 
   matches.forEach((match) => {
-    if (match.next_match_id && match.next_match_slot) {
+    // server may use 0 for "no next match"
+    if (match.next_match_id && match.next_match_id > 0 && match.next_match_slot) {
       lookup.set(`${match.next_match_id}:${match.next_match_slot}`, match);
     }
   });
@@ -115,7 +113,7 @@ function resolveBracketSlotLabel(
   }
 
   const winnerTeamId = getWinnerTeamId(sourceMatch);
-  return winnerTeamId === null ? "TBD" : formatTeamId(winnerTeamId);
+  return winnerTeamId === 0 ? "TBD" : formatTeamId(winnerTeamId);
 }
 
 function buildDepthLookup(matches: BracketMatch[]): Map<number, number> {
@@ -169,16 +167,16 @@ function groupMatchesIntoRounds(matches: BracketMatch[]): BracketRound[] {
     }));
 }
 
-function matchDestination(match: BracketMatch): string | null {
-  if (match.next_match_id) {
+function matchDestination(match: BracketMatch): string {
+  if (match.next_match_id && match.next_match_id > 0) {
     return `Winner advances to #${match.next_match_id}`;
   }
 
-  if (match.loser_next_match_id) {
+  if (match.loser_next_match_id && match.loser_next_match_id > 0) {
     return `Loser drops to #${match.loser_next_match_id}`;
   }
 
-  return null;
+  return "";
 }
 
 function BracketMatchCard({
@@ -191,7 +189,7 @@ function BracketMatchCard({
   incomingSlotLookup: Map<string, BracketMatch>;
 }) {
   const destination = matchDestination(match);
-  const state = match.status ?? (match.result ? "completed" : "scheduled");
+  const state = match.status || (match.result && match.result !== "" ? "completed" : "scheduled");
   const team1Label = resolveBracketSlotLabel(match, "team1", incomingSlotLookup);
   const team2Label = resolveBracketSlotLabel(match, "team2", incomingSlotLookup);
 
@@ -223,7 +221,7 @@ function BracketMatchCard({
         </div>
         <div className="flex items-center justify-between gap-3 rounded-lg bg-white/3 px-3 py-2">
           <span className="uppercase tracking-[0.16em]">Result</span>
-          <span className="text-white/75">{match.result ?? "Pending"}</span>
+          <span className="text-white/75">{match.result && match.result !== "" ? match.result : "Pending"}</span>
         </div>
         {destination && (
           <div className="rounded-lg border border-white/8 bg-black/15 px-3 py-2 text-white/55">
@@ -369,7 +367,7 @@ function SingleEliminationBracket({
                 const child = layout.positions.get(from);
                 const parent = layout.positions.get(to);
                 if (!child || !parent) {
-                  return null;
+                  return <></>;
                 }
 
                 const childRight = 40 + child.x + 180;
@@ -392,7 +390,7 @@ function SingleEliminationBracket({
           {matches.map((match) => {
             const position = layout.positions.get(match.match_id);
             if (!position) {
-              return null;
+              return <></>;
             }
 
             return (
@@ -406,7 +404,7 @@ function SingleEliminationBracket({
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-white/45">Match #{match.match_id}</span>
                   <span className="text-[10px] uppercase tracking-[0.16em] text-cyan-100/80">
-                    {match.result ?? (match.status ?? "scheduled")}
+                    {match.result && match.result !== "" ? match.result : (match.status || "scheduled")}
                   </span>
                 </div>
                 <div className="mt-2 space-y-1 text-xs text-white/75">
@@ -433,13 +431,26 @@ export default function TournamentDetailsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
 
-  const [tournament, setTournament] = useState<TournamentDto | null>(null);
+  const EMPTY_TOURNAMENT: TournamentDto = {
+    tournament_id: 0,
+    name: "",
+    game_id: 0,
+    format: "single_elimination",
+    max_teams: 0,
+    entry_deadline: "",
+    prize_pool: 0,
+    status: "upcoming",
+    createdAt: "",
+    updatedAt: "",
+  };
+
+  const [tournament, setTournament] = useState<TournamentDto>(EMPTY_TOURNAMENT);
   const [matches, setMatches] = useState<BracketMatch[]>([]);
-  const [registrationCount, setRegistrationCount] = useState<number | null>(null);
+  const [registrationCount, setRegistrationCount] = useState<number>(0);
   const [registrations, setRegistrations] = useState<TournamentRegistrationDto[]>([]);
-  const [selectedMatchId, setSelectedMatchId] = useState<number | null>(null);
+  const [selectedMatchId, setSelectedMatchId] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [isConfirmingId, setIsConfirmingId] = useState<number | null>(null);
+  const [isConfirmingId, setIsConfirmingId] = useState<number>(0);
   const [error, setError] = useState("");
 
   const fetchTournamentData = useCallback(async () => {
@@ -462,13 +473,13 @@ export default function TournamentDetailsPage() {
     }
 
     const registrationCountRes = await tournamentApi.getRegistrationCount(tournamentId);
-    const registrationsRes = isAdmin ? await tournamentApi.getRegistrations(tournamentId) : null;
+    const registrationsRes = isAdmin ? await tournamentApi.getRegistrations(tournamentId) : { success: true, message: "", data: [] as TournamentRegistrationDto[] };
 
     return {
       tournament: tournamentRes.data,
       matches: matchesRes.success ? (matchesRes.data ?? []) : [],
-      registrationCount: registrationCountRes.success ? (registrationCountRes.data ?? 0) : null,
-      registrations: registrationsRes?.success ? (registrationsRes.data ?? []) : [],
+      registrationCount: registrationCountRes.success ? (registrationCountRes.data ?? 0) : 0,
+      registrations: registrationsRes.success ? (registrationsRes.data ?? []) : [],
       error: matchesRes.success ? "" : (matchesRes.message || "Tournament loaded, but matches failed to load."),
     };
   }, [id, isAdmin]);
@@ -487,11 +498,9 @@ export default function TournamentDetailsPage() {
         setError(result.error);
       }
 
-      if (result.tournament) {
-        setTournament(result.tournament);
-      }
+      setTournament(result.tournament ?? EMPTY_TOURNAMENT);
       setMatches(result.matches ?? []);
-      setRegistrationCount(result.registrationCount ?? null);
+      setRegistrationCount(result.registrationCount ?? 0);
       setRegistrations(result.registrations ?? []);
 
       setIsLoading(false);
@@ -505,13 +514,13 @@ export default function TournamentDetailsPage() {
   }, [fetchTournamentData]);
 
   async function confirmRegistration(registrationId: number) {
-    if (!tournament) return;
+    if (tournament.tournament_id === 0) return;
 
     setError("");
     setIsConfirmingId(registrationId);
 
     const res = await tournamentApi.confirmRegistration(tournament.tournament_id, registrationId);
-    setIsConfirmingId(null);
+    setIsConfirmingId(0);
 
     if (!res.success) {
       setError(res.message || "Failed to confirm registration.");
@@ -522,11 +531,9 @@ export default function TournamentDetailsPage() {
     if (result.error) {
       setError(result.error);
     }
-    if (result.tournament) {
-      setTournament(result.tournament);
-    }
+    setTournament(result.tournament ?? EMPTY_TOURNAMENT);
     setMatches(result.matches ?? []);
-    setRegistrationCount(result.registrationCount ?? null);
+    setRegistrationCount(result.registrationCount ?? 0);
     setRegistrations(result.registrations ?? []);
   }
 
@@ -539,10 +546,24 @@ export default function TournamentDetailsPage() {
   const incomingSlotLookup = useMemo(() => buildIncomingSlotLookup(matches), [matches]);
 
   const doubleEliminationView = useMemo(() => {
-    const grandFinal = sortedMatches.find((match) => !match.next_match_id && !match.loser_next_match_id) ?? null;
-    const winnersMatches = sortedMatches.filter((match) => match.loser_next_match_id !== null);
+    const EMPTY_MATCH: BracketMatch = {
+      match_id: 0,
+      tournament_id: 0,
+      team1_id: 0,
+      team2_id: 0,
+      scheduled_at: "",
+      result: "",
+      next_match_id: 0,
+      next_match_slot: "",
+      loser_next_match_id: 0,
+      loser_next_match_slot: "",
+      status: "scheduled",
+    };
+
+    const grandFinal = sortedMatches.find((match) => !match.next_match_id && !match.loser_next_match_id) ?? EMPTY_MATCH;
+    const winnersMatches = sortedMatches.filter((match) => match.loser_next_match_id !== 0);
     const losersMatches = sortedMatches.filter(
-      (match) => match.match_id !== grandFinal?.match_id && match.loser_next_match_id === null && match.next_match_id !== null,
+      (match) => match.match_id !== grandFinal.match_id && match.loser_next_match_id === 0 && match.next_match_id !== 0,
     );
 
     return {
@@ -596,7 +617,7 @@ export default function TournamentDetailsPage() {
               <td className="px-5 py-4 text-white/70">{formatTeamId(match.team1_id)}</td>
               <td className="px-5 py-4 text-white/70">{formatTeamId(match.team2_id)}</td>
               <td className="px-5 py-4 text-white/70">{formatDateTime(match.scheduled_at)}</td>
-              <td className="px-5 py-4 text-white/80">{match.result ?? "-"}</td>
+              <td className="px-5 py-4 text-white/80">{match.result && match.result !== "" ? match.result : "-"}</td>
             </tr>
           ))}
         </tbody>
@@ -613,7 +634,7 @@ export default function TournamentDetailsPage() {
     );
   }
 
-  if (!tournament) {
+  if (tournament.tournament_id === 0) {
     return (
       <div>
         <div className="mb-8">
@@ -642,10 +663,10 @@ export default function TournamentDetailsPage() {
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-        <StatCard label="Format" value={formatLabels[tournament.format]} sub="Competition structure" />
-        <StatCard label="Status" value={statusLabels[tournament.status]} sub="Current tournament phase" />
-        <StatCard label="Max Teams" value={tournament.max_teams} sub="Bracket capacity" />
-        <StatCard label="Prize Pool" value={formatMoney(tournament.prize_pool)} sub="Total prize fund" />
+        <StatCard label="Format" value={formatLabels[tournament.format] ?? tournament.format} sub="Competition structure" />
+        <StatCard label="Status" value={statusLabels[tournament.status] ?? tournament.status} sub="Current tournament phase" />
+        <StatCard label="Max Teams" value={tournament.max_teams ?? "-"} sub="Bracket capacity" />
+        <StatCard label="Prize Pool" value={formatMoney(Number(tournament.prize_pool ?? 0))} sub="Total prize fund" />
       </div>
 
       <div className="mb-4">
@@ -665,7 +686,7 @@ export default function TournamentDetailsPage() {
         </div>
       </section>
 
-      {registrationCount === null || registrationCount < tournament.max_teams ? (
+      {registrationCount < tournament.max_teams ? (
         <TournamentTeamRegistrationPanel tournament={tournament} />
       ) : (
         <div className="mb-8 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
@@ -688,7 +709,7 @@ export default function TournamentDetailsPage() {
                 {registrations.map((registration) => (
                   <tr key={registration.id} className="border-b last:border-b-0 border-white/6">
                     <td className="px-5 py-4 text-white/85 font-medium">#{registration.id}</td>
-                    <td className="px-5 py-4 text-white/70">{registration.team_name} (#{registration.team_id})</td>
+                    <td className="px-5 py-4 text-white/70">{registration.team_name && registration.team_name !== "" ? registration.team_name : `Team #${registration.team_id}`} (#{registration.team_id})</td>
                     <td className="px-5 py-4 text-white/70">{registration.status}</td>
                     <td className="px-5 py-4 text-white/70">{formatDateTime(registration.registered_at)}</td>
                     <td className="px-5 py-4 text-white/80">
@@ -750,7 +771,7 @@ export default function TournamentDetailsPage() {
             {renderBracketRounds(doubleEliminationView.losersRounds, "border-fuchsia-400/20 bg-fuchsia-400/8")}
           </div>
 
-          {doubleEliminationView.grandFinal && (
+          {doubleEliminationView.grandFinal.match_id !== 0 && (
             <div>
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
@@ -768,8 +789,8 @@ export default function TournamentDetailsPage() {
 
       <MatchDetailsDialog
         matchId={selectedMatchId}
-        isOpen={selectedMatchId !== null}
-        onClose={() => setSelectedMatchId(null)}
+        isOpen={selectedMatchId !== 0}
+        onClose={() => setSelectedMatchId(0)}
       />
     </div>
   );

@@ -12,28 +12,28 @@ export class TeamInvitationReadRepository implements ITeamInvitationReadReposito
     private readonly logger: ILoggerService
   ) {}
 
-  async findById(id: number): Promise<TeamInvitation | null> {
+  async findById(id: number): Promise<TeamInvitation> {
     const res = await this.db.getReadConnection();
-    if (!res) return null;
+    if (!res) return new TeamInvitation();
 
     try {
       const [rows] = await res.conn.execute<RowDataPacket[]>(
         "SELECT * FROM team_invitations WHERE id = ?",
         [id]
       );
-      return rows.length > 0 ? TeamInvitationMapper.fromRow(rows[0]) : null;
+      return rows.length > 0 ? TeamInvitationMapper.fromRow(rows[0]) : new TeamInvitation();
     } catch (err) {
-      this.logger.error("TeamInvitationRepository", "findById failed", err);
-      return null;
+      this.logger.error("TeamInvitationRepository", "findById failed", err instanceof Error ? err : String(err));
+      return new TeamInvitation();
     } finally {
       res.conn.release();
     }
   }
 
 
-  async findByTeamAndUser(teamId: number, userId: number): Promise<TeamInvitation | null> {
+  async findByTeamAndUser(teamId: number, userId: number): Promise<TeamInvitation> {
     const res = await this.db.getReadConnection();
-    if (!res) return null;
+    if (!res) return new TeamInvitation();
 
     try {
       const [rows] = await res.conn.execute<RowDataPacket[]>(
@@ -41,10 +41,10 @@ export class TeamInvitationReadRepository implements ITeamInvitationReadReposito
         [teamId, userId, InvitationStatus.PENDING]
       );
 
-      return rows.length > 0 ? TeamInvitationMapper.fromRow(rows[0]) : null;
+      return rows.length > 0 ? TeamInvitationMapper.fromRow(rows[0]) : new TeamInvitation();
     } catch (err) {
-      this.logger.error("TeamInvitationRepository", "findByTeamAndUser failed", err);
-      return null;
+      this.logger.error("TeamInvitationRepository", "findByTeamAndUser failed", err instanceof Error ? err : String(err));
+      return new TeamInvitation();
     } finally {
       res.conn.release();
     }
@@ -62,7 +62,7 @@ export class TeamInvitationReadRepository implements ITeamInvitationReadReposito
       );
      return rows.map(row => TeamInvitationMapper.fromRow(row));
     } catch (err) {
-      this.logger.error("TeamInvitationRepository", "findByUserId failed", err);
+      this.logger.error("TeamInvitationRepository", "findByUserId failed", err instanceof Error ? err : String(err));
       return [];
     } finally {
       res.conn.release();
@@ -81,7 +81,7 @@ export class TeamInvitationReadRepository implements ITeamInvitationReadReposito
       );
         return rows.map(row => TeamInvitationMapper.fromRow(row));    
       } catch (err) {
-      this.logger.error("TeamInvitationRepository", "findByTeamId failed", err);
+      this.logger.error("TeamInvitationRepository", "findByTeamId failed", err instanceof Error ? err : String(err));
       return [];
     } finally {
       res.conn.release();

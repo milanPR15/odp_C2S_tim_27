@@ -20,7 +20,7 @@ export class AuditWriteRepository implements IAuditWriteRepository{
       );
     }
     catch (err) {
-      this.logger.error("AuditWriteRepository", "create failed", err);
+      this.logger.error("AuditWriteRepository", "create failed", err instanceof Error ? err : String(err));
     } finally {
       res.conn.release();
     }

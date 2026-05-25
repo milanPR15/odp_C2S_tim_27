@@ -8,35 +8,35 @@ import { IGamesReadRepository } from "../../../Domain/repositories/games/IGamesR
 export class GameReadRepository implements IGamesReadRepository{
   constructor(private readonly db: DbManager, private readonly logger: ILoggerService) {}
 
-  async getById(id: number): Promise<Game | null> {
+  async getById(id: number): Promise<Game> {
     const res = await this.db.getReadConnection();
-    if (!res) return null;
+    if (!res) return new Game();
     try {
       const [rows] = await res.conn.execute<RowDataPacket[]>(
         `SELECT * FROM games WHERE game_id = ?`,
         [id]
       );
-      return rows.length > 0 ? GamesMapper.fromRow(rows[0]) : null;
+      return rows.length > 0 ? GamesMapper.fromRow(rows[0]) : new Game();
     } catch (err) {
-      this.logger.error("GameReadRepository", "getById failed", err);
-      return null;
+      this.logger.error("GameReadRepository", "getById failed", err instanceof Error ? err : String(err));
+      return new Game();
     } finally {
       res.conn.release();
     }
   }
 
-  async getByName(name: string): Promise<Game | null> {
+  async getByName(name: string): Promise<Game> {
         const res = await this.db.getReadConnection();
-        if (!res) return null;
+        if (!res) return new Game();
         try {
             const [rows] = await res.conn.execute<RowDataPacket[]>(
                 `SELECT * FROM games WHERE title = ?`,
                 [name]
             );
-            return rows.length > 0 ? GamesMapper.fromRow(rows[0]) : null;
+            return rows.length > 0 ? GamesMapper.fromRow(rows[0]) : new Game();
         } catch (err) {
-            this.logger.error("GameReadRepository", "findByName failed", err);
-            return null;
+            this.logger.error("GameReadRepository", "findByName failed", err instanceof Error ? err : String(err));
+            return new Game();
         }
         finally { res.conn.release(); }
     }
@@ -48,7 +48,7 @@ export class GameReadRepository implements IGamesReadRepository{
             const [rows] = await res.conn.execute<RowDataPacket[]>(`SELECT * FROM games`);
             return rows.map((r: RowDataPacket) => GamesMapper.fromRow(r));
         } catch (err) {
-            this.logger.error("GameReadRepository", "findAll failed", err);
+            this.logger.error("GameReadRepository", "findAll failed", err instanceof Error ? err : String(err));
             return [];
         }
         finally { res.conn.release(); }

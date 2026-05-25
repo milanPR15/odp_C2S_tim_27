@@ -5,24 +5,24 @@ import { healthApi } from "../../api_services/health/HealthAPIService";
 import type { HealthNode } from "../../api_services/health/IHealthAPIService";
 
 export default function AdminDashboard() {
-  const [nodes, setNodes] = useState<HealthNode[] | null>(null);
+  const [nodes, setNodes] = useState<HealthNode[]>([] as HealthNode[]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string>("");
 
   const fetchHealth = async () => {
     setLoading(true);
-    setError(null);
+    setError("");
     try {
       const res = await healthApi.getDbHealth();
       if (!res.success) {
         setError(res.message || "Failed to load DB health");
-        setNodes(null);
+        setNodes([] as HealthNode[]);
       } else {
-        setNodes(res.data ?? null);
+        setNodes(res.data ?? [] as HealthNode[]);
       }
     } catch {
       setError("Failed to load DB health");
-      setNodes(null);
+      setNodes([] as HealthNode[]);
     } finally {
       setLoading(false);
     }

@@ -4,15 +4,15 @@ export interface MatchRow {
   team1_id: number;
   team2_id: number;
 
-  winner_team_id: number | null;
-  next_match_id: number | null;
-  next_match_slot: 'team1' | 'team2' | null;
-  loser_next_match_id: number | null;
-  loser_next_match_slot: 'team1' | 'team2' | null;
+  winner_team_id: number;
+  next_match_id: number;
+  next_match_slot: 'team1' | 'team2' | '';
+  loser_next_match_id: number;
+  loser_next_match_slot: 'team1' | 'team2' | '';
   status: string;
 
   scheduled_at: string;
-  result: string | null;
+  result: string;
 
   created_at?: string;
   updated_at?: string;
@@ -25,15 +25,15 @@ export class Match {
     public team1_id: number = 0,
     public team2_id: number = 0,
 
-    public winner_team_id: number | null = null,
-    public next_match_id: number | null = null,
-    public next_match_slot: 'team1' | 'team2' | null = null,
-    public loser_next_match_id: number | null = null,
-    public loser_next_match_slot: 'team1' | 'team2' | null = null,
+    public winner_team_id: number = 0,
+    public next_match_id: number = 0,
+    public next_match_slot: 'team1' | 'team2' | '' = '',
+    public loser_next_match_id: number = 0,
+    public loser_next_match_slot: 'team1' | 'team2' | '' = '',
     public status: string = 'scheduled',
 
     public scheduled_at: Date = new Date(),
-    public result: string | null = null,      
+    public result: string = "",      
     public createdAt: Date = new Date(),
     public updatedAt: Date = new Date()
   ) {}
@@ -44,14 +44,14 @@ export class Match {
       row.tournament_id,
       row.team1_id,
       row.team2_id,
-      row.winner_team_id,
-      row.next_match_id,
-      row.next_match_slot,
-      row.loser_next_match_id,
-      row.loser_next_match_slot,
+      row.winner_team_id ?? 0,
+      row.next_match_id ?? 0,
+      row.next_match_slot ?? '',
+      row.loser_next_match_id ?? 0,
+      row.loser_next_match_slot ?? '',
       row.status,
       new Date(row.scheduled_at),
-      row.result,
+      row.result ?? "",
       row.created_at ? new Date(row.created_at) : new Date(),
       row.updated_at ? new Date(row.updated_at) : new Date()
     );

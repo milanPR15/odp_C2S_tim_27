@@ -7,7 +7,7 @@ export class TournamentRegistrationDto {
         public team_id: number = 0,
         public team_name: string = "",
         public status: RegistrationStatus = RegistrationStatus.PENDING,
-        public seed: number | null = null,
+        public seed: number = 0,
         public registered_at: Date = new Date(),
         public selected_player_ids: number[] = []
     ) {}

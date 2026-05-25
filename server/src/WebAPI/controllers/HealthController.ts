@@ -24,7 +24,7 @@ export class HealthController {
         host: n.host,
         port: n.port,
         status: n.status,
-        lastCheck: n.lastCheck ? n.lastCheck.toISOString() : null,
+        lastCheck: n.lastCheck.toISOString(),
         successfulWrites: n.successfulWrites ?? 0,
         failedWrites: n.failedWrites ?? 0,
       }));

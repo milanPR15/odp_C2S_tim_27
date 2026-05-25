@@ -18,7 +18,7 @@ export class UserReadRepository  implements IUserReadRepository{
       const [rows] = await res.conn.execute<RowDataPacket[]>(`SELECT * FROM users WHERE id = ?`, [id]);
       return rows.length > 0 ? UserMapper.fromRow(rows[0]) : new User();
     } catch (err) {
-      this.logger.error("UserRepository", "findById failed", err);
+      this.logger.error("UserRepository", "findById failed", err instanceof Error ? err : String(err));
       return new User();
     } finally { res.conn.release(); }
   }
@@ -31,7 +31,7 @@ export class UserReadRepository  implements IUserReadRepository{
       const [rows] = await res.conn.execute<RowDataPacket[]>(`SELECT * FROM users WHERE gamer_tag = ?`, [username]);
       return rows.length > 0 ? UserMapper.fromRow(rows[0]) : new User();
     } catch (err) {
-      this.logger.error("UserRepository", "findByUsername failed", err);
+      this.logger.error("UserRepository", "findByUsername failed", err instanceof Error ? err : String(err));
       return new User();
     } finally { res.conn.release(); }
   }
@@ -43,7 +43,7 @@ export class UserReadRepository  implements IUserReadRepository{
       const [rows] = await res.conn.execute<RowDataPacket[]>(`SELECT * FROM users WHERE email = ?`, [email]);
       return rows.length > 0 ? UserMapper.fromRow(rows[0]) : new User();
     } catch (err) {
-      this.logger.error("UserRepository", "findByEmail failed", err);
+      this.logger.error("UserRepository", "findByEmail failed", err instanceof Error ? err : String(err));
       return new User();
     } finally { res.conn.release(); }
   }
@@ -56,7 +56,7 @@ export class UserReadRepository  implements IUserReadRepository{
       const [rows] = await res.conn.execute<RowDataPacket[]>(`SELECT * FROM users ORDER BY id ASC`);
       return rows.map(r => UserMapper.fromRow(r));
     } catch (err) {
-      this.logger.error("UserRepository", "findAll failed", err);
+      this.logger.error("UserRepository", "findAll failed", err instanceof Error ? err : String(err));
       return [];
     } finally { res.conn.release(); }
   }
@@ -71,7 +71,7 @@ export class UserReadRepository  implements IUserReadRepository{
       );
       return (rows[0]?.cnt ?? 0) > 0;
     } catch (err) {
-      this.logger.error("UserRepository", "exists failed", err);
+      this.logger.error("UserRepository", "exists failed", err instanceof Error ? err : String(err));
       return false;
     } finally { res.conn.release(); }
   }

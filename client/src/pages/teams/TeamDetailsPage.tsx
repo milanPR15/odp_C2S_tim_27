@@ -25,7 +25,7 @@ function formatDate(value: string | Date | undefined): string {
 export default function TeamDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const [team, setTeam] = useState<TeamDto | null>(null);
+  const [team, setTeam] = useState<TeamDto>({} as TeamDto);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -41,7 +41,7 @@ export default function TeamDetailsPage() {
   const [removingMemberIds, setRemovingMemberIds] = useState<number[]>([]);
   const [removeError, setRemoveError] = useState("");
   const [logoFileName, setLogoFileName] = useState("");
-  const editLogoInputRef = useRef<HTMLInputElement>(null);
+  const editLogoInputRef = useRef<HTMLInputElement>({} as HTMLInputElement);
   const [users, setUsers] = useState<UserDto[]>([]);
   const [isUsersLoading, setIsUsersLoading] = useState(false);
   const [inviteError, setInviteError] = useState("");

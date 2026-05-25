@@ -3,15 +3,15 @@ export type ApiResponse<T> = { success: boolean; message: string; data?: T };
 export interface MatchDto {
   match_id: number;
   tournament_id: number;
-  team1_id: number | null;
-  team2_id: number | null;
+  team1_id: number;
+  team2_id: number;
   scheduled_at: string;
-  result: string | null;
-  next_match_id?: number | null;
-  next_match_slot?: 'team1' | 'team2' | null;
-  loser_next_match_id?: number | null;
-  loser_next_match_slot?: 'team1' | 'team2' | null;
-  status?: string;
+  result: string;
+  next_match_id: number;
+  next_match_slot: 'team1' | 'team2' | '';
+  loser_next_match_id: number;
+  loser_next_match_slot: 'team1' | 'team2' | '';
+  status: string;
 }
 
 export interface UpdateMatchResultPayload {

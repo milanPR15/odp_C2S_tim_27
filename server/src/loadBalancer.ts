@@ -11,8 +11,8 @@ interface BackendTarget {
   weight: number;
   activeConnections: number;
   healthy: boolean;
-  lastProbeAt: string | null;
-  lastProbeError: string | null;
+  lastProbeAt: string;
+  lastProbeError: string;
 }
 
 interface RequestMeta {
@@ -62,8 +62,8 @@ function parseTargets(): BackendTarget[] {
       weight: configuredWeight > 0 ? configuredWeight : 1,
       activeConnections: 0,
       healthy: true,
-      lastProbeAt: null,
-      lastProbeError: null,
+      lastProbeAt: "",
+      lastProbeError: "",
     };
   });
 }
@@ -206,7 +206,7 @@ function runProbe(target: BackendTarget, path: string, timeoutMs: number): Promi
       (response) => {
         target.lastProbeAt = new Date().toISOString();
         target.healthy = (response.statusCode ?? 500) < 500;
-        target.lastProbeError = target.healthy ? null : `Probe status ${response.statusCode ?? 500}`;
+        target.lastProbeError = target.healthy ? "" : `Probe status ${response.statusCode ?? 500}`;
         response.resume();
         resolve();
       },
@@ -349,18 +349,22 @@ async function forwardWithFallback(
   body: Buffer,
   response: ServerResponse,
 ): Promise<void> {
-  let lastError: unknown;
+  let lastError: Error = new Error("No backend targets available");
 
   for (const candidate of candidates) {
     try {
       await forwardOnce(candidate, requestMeta, body, response);
       return;
     } catch (error) {
-      lastError = error;
+      if (error instanceof Error) {
+        lastError = error;
+      } else {
+        lastError = new Error(String(error));
+      }
     }
   }
 
-  throw lastError instanceof Error ? lastError : new Error("No backend available");
+  throw lastError ?? new Error("No backend available");
 }
 
 const targets = parseTargets();

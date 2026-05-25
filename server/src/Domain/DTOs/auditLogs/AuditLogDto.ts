@@ -5,8 +5,8 @@ export class AuditLogDto {
         public action: string,
         public entity: string,
         public entity_id: number,
-        public meta: string | null,
-        public ip_address: string | null,
+        public meta: string,
+        public ip_address: string,
         public created_at: Date
     ) {}
 }

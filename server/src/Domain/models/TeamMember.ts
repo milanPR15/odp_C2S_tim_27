@@ -1,3 +1,4 @@
+import { RowDataPacket } from "mysql2/promise";
 import { TeamRole } from "../enums/TeamRole";
 
 export class TeamMember {
@@ -9,7 +10,7 @@ export class TeamMember {
     public joined_at: Date = new Date()
   ) {}
 
-  static fromDB(row: any): TeamMember {
+  static fromDB(row: RowDataPacket): TeamMember {
     return new TeamMember(
       row.id,
       row.team_id,

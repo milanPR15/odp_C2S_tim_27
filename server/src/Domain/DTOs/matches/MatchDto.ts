@@ -7,11 +7,11 @@ export class MatchDto {
     public team1_id: number,
     public team2_id: number,
     public scheduled_at: Date,
-    public result: string | null,
-    public next_match_id: number | null = null,
-    public next_match_slot: 'team1' | 'team2' | null = null,
-    public loser_next_match_id: number | null = null,
-    public loser_next_match_slot: 'team1' | 'team2' | null = null,
+    public result: string,
+    public next_match_id: number = 0,
+    public next_match_slot: 'team1' | 'team2' | '' = '',
+    public loser_next_match_id: number = 0,
+    public loser_next_match_slot: 'team1' | 'team2' | '' = '',
     public status: string = 'scheduled',
     public players?: MatchPlayerDto[]   
   ) {}

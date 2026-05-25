@@ -28,17 +28,17 @@ export class TournamentService implements ITournamentService {
         private readonly matchService: IMatchService
     ) {}
 
-    private parseEntryDeadline(rawValue: unknown): Date | null {
+    private parseEntryDeadline(rawValue: unknown): Date | undefined {
         if (rawValue instanceof Date) {
-            return Number.isNaN(rawValue.getTime()) ? null : rawValue;
+            return Number.isNaN(rawValue.getTime()) ? undefined : rawValue;
         }
 
         if (typeof rawValue === "string" || typeof rawValue === "number") {
             const parsed = new Date(rawValue);
-            return Number.isNaN(parsed.getTime()) ? null : parsed;
+            return Number.isNaN(parsed.getTime()) ? undefined : parsed;
         }
 
-        return null;
+        return undefined;
     }
 
     private mapToDto(t: Tournament): TournamentDto {
@@ -96,7 +96,7 @@ export class TournamentService implements ITournamentService {
 
     async getById(id: number): Promise<Result<TournamentDto>> {
         const tournament = await this.tournamentReadRepository.findById(id);
-        if (!tournament) {
+        if (!tournament.tournament_id) {
             return { success: false, statusCode: 404, error: `Tournament with ID ${id} not found.` };
         }
         return { success: true, data: this.mapToDto(tournament) };
@@ -109,7 +109,7 @@ export class TournamentService implements ITournamentService {
 
     async getRegistrationCount(id: number): Promise<Result<number>> {
         const tournament = await this.tournamentReadRepository.findById(id);
-        if (!tournament) {
+        if (!tournament.tournament_id) {
             return { success: false, statusCode: 404, error: `Tournament with ID ${id} not found.` };
         }
 
@@ -119,7 +119,7 @@ export class TournamentService implements ITournamentService {
 
     async getRegistrations(id: number): Promise<Result<TournamentRegistrationDto[]>> {
         const tournament = await this.tournamentReadRepository.findById(id);
-        if (!tournament) {
+        if (!tournament.tournament_id) {
             return { success: false, statusCode: 404, error: `Tournament with ID ${id} not found.` };
         }
 
@@ -233,7 +233,7 @@ export class TournamentService implements ITournamentService {
         }
 
         const tournament = await this.tournamentReadRepository.findById(tournamentId);
-        if (!tournament) {
+        if (!tournament.tournament_id) {
             return { success: false, statusCode: 404, error: `Tournament with ID ${tournamentId} not found.` };
         }
 
@@ -251,7 +251,7 @@ export class TournamentService implements ITournamentService {
         }
 
         const team = await this.teamReadRepository.findById(dto.teamId);
-        if (!team) {
+        if (!team.team_id) {
             return { success: false, statusCode: 404, error: "Team not found." };
         }
 
@@ -294,12 +294,12 @@ export class TournamentService implements ITournamentService {
             tournamentId,
             dto.teamId,
             RegistrationStatus.PENDING,
-            null,
+            0,
             new Date(),
             Array.from(selectedIds)
         ));
 
-        if (!registration) {
+        if (!registration.id) {
             return { success: false, statusCode: 500, error: "Failed to register team for the tournament." };
         }
 
@@ -316,12 +316,12 @@ export class TournamentService implements ITournamentService {
 
     async confirmRegistration(tournamentId: number, registrationId: number, userId: number): Promise<Result<void>> {
         const tournament = await this.tournamentReadRepository.findById(tournamentId);
-        if (!tournament) {
+        if (!tournament.tournament_id) {
             return { success: false, statusCode: 404, error: `Tournament with ID ${tournamentId} not found.` };
         }
 
         const registration = await this.registrationRepository.findById(registrationId);
-        if (!registration || registration.tournament_id !== tournamentId) {
+        if (!registration.id || registration.tournament_id !== tournamentId) {
             return { success: false, statusCode: 404, error: "Tournament registration not found." };
         }
 

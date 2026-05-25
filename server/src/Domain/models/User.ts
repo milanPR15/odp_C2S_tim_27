@@ -9,7 +9,7 @@ export class User {
     public role: UserRole    = UserRole.PLAYER,
     public passwordHash: string = "",
     public isActive: number  = 1,
-    public profile_image: string | null = null,
+    public profile_image: string = "",
     public createdAt: Date = new Date(), 
     public updatedAt: Date = new Date(), 
     
