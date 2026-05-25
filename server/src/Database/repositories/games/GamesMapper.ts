@@ -9,8 +9,8 @@ export class GamesMapper {
       r.genre,
       r.max_players,
       r.logo,
-      new Date(r.createdAt),
-      new Date(r.updatedAt)
+      new Date(r.created_at),
+      new Date(r.updated_at)
     );
   }
 }

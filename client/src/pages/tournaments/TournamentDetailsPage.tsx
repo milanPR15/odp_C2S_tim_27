@@ -12,13 +12,21 @@ import {
   Spinner,
   StatCard,
   StatusBadge,
-  Table,
-  TableHead,
 } from "../../components/ui/UI";
-import type { MatchDto } from "../../api_services/matches/IMatchesAPIService";
 import type { TournamentDto } from "../../models/tournament/TournamentTypes";
 import type { TournamentRegistrationDto } from "../../models/tournament/TournamentTypes";
 import { useAuth } from "../../hooks/auth/useAuthHook";
+import BracketMatchCard from "./components/BracketMatchCard";
+import SingleEliminationBracket from "./components/SingleEliminationBracket";
+import RoundRobinTable from "./components/RoundRobinTable";
+import AdminRegistrationsPanel from "./components/AdminRegistrationsPanel";
+import {
+  formatDateTime,
+  formatMoney,
+  buildIncomingSlotLookup,
+  groupMatchesIntoRounds,
+} from "./components/tournamentUtils";
+import type { BracketMatch, BracketRound } from "./components/tournamentUtils";
 
 const statusLabels: Record<TournamentDto["status"], string> = {
   upcoming: "Upcoming",
@@ -32,418 +40,24 @@ const formatLabels: Record<TournamentDto["format"], string> = {
   round_robin: "Round Robin",
 };
 
-function formatDateTime(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "-";
-  return parsed.toLocaleString();
-}
-
-function formatMoney(value: number): string {
-  return new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-type BracketMatch = MatchDto;
-
-type BracketRound = {
-  label: string;
-  matches: BracketMatch[];
+const EMPTY_TOURNAMENT: TournamentDto = {
+  tournament_id: 0,
+  name: "",
+  game_id: 0,
+  format: "single_elimination",
+  max_teams: 0,
+  entry_deadline: "",
+  prize_pool: 0,
+  status: "upcoming",
+  createdAt: "",
+  updatedAt: "",
 };
-
-type BracketPosition = {
-  match: BracketMatch;
-  x: number;
-  y: number;
-  roundIndex: number;
-};
-
-type BracketSlot = "team1" | "team2";
-
-function formatTeamId(teamId: number): string {
-  // treat 0 as unknown slot
-  if (!teamId || teamId === 0) return "TBD";
-  return `Team ${teamId}`;
-}
-
-function isMatchCompleted(match: BracketMatch): boolean {
-  const state = match.status || (match.result && match.result !== "" ? "completed" : "scheduled");
-  return state === "completed";
-}
-
-function getWinnerTeamId(match: BracketMatch): number {
-  if (!isMatchCompleted(match) || !match.result || match.result === "") {
-    return 0;
-  }
-
-  const [leftScoreRaw, rightScoreRaw] = match.result.split(":");
-  const leftScore = Number(leftScoreRaw);
-  const rightScore = Number(rightScoreRaw);
-
-  if (Number.isNaN(leftScore) || Number.isNaN(rightScore) || leftScore === rightScore) {
-    return 0;
-  }
-
-  return leftScore > rightScore ? match.team1_id : match.team2_id;
-}
-
-function buildIncomingSlotLookup(matches: BracketMatch[]): Map<string, BracketMatch> {
-  const lookup = new Map<string, BracketMatch>();
-
-  matches.forEach((match) => {
-    // server may use 0 for "no next match"
-    if (match.next_match_id && match.next_match_id > 0 && match.next_match_slot) {
-      lookup.set(`${match.next_match_id}:${match.next_match_slot}`, match);
-    }
-  });
-
-  return lookup;
-}
-
-function resolveBracketSlotLabel(
-  parentMatch: BracketMatch,
-  slot: BracketSlot,
-  incomingSlotLookup: Map<string, BracketMatch>
-): string {
-  const sourceMatch = incomingSlotLookup.get(`${parentMatch.match_id}:${slot}`);
-  if (!sourceMatch) {
-    return formatTeamId(slot === "team1" ? parentMatch.team1_id : parentMatch.team2_id);
-  }
-
-  const winnerTeamId = getWinnerTeamId(sourceMatch);
-  return winnerTeamId === 0 ? "TBD" : formatTeamId(winnerTeamId);
-}
-
-function buildDepthLookup(matches: BracketMatch[]): Map<number, number> {
-  const byId = new Map(matches.map((match) => [match.match_id, match]));
-  const depthLookup = new Map<number, number>();
-
-  function resolveDepth(matchId: number): number {
-    const cachedDepth = depthLookup.get(matchId);
-    if (cachedDepth !== undefined) {
-      return cachedDepth;
-    }
-
-    const match = byId.get(matchId);
-    if (!match || !match.next_match_id) {
-      depthLookup.set(matchId, 0);
-      return 0;
-    }
-
-    const depth = resolveDepth(match.next_match_id) + 1;
-    depthLookup.set(matchId, depth);
-    return depth;
-  }
-
-  matches.forEach((match) => {
-    resolveDepth(match.match_id);
-  });
-
-  return depthLookup;
-}
-
-function groupMatchesIntoRounds(matches: BracketMatch[]): BracketRound[] {
-  if (matches.length === 0) {
-    return [];
-  }
-
-  const depthLookup = buildDepthLookup(matches);
-  const grouped = new Map<number, BracketMatch[]>();
-
-  matches.forEach((match) => {
-    const depth = depthLookup.get(match.match_id) ?? 0;
-    const bucket = grouped.get(depth) ?? [];
-    bucket.push(match);
-    grouped.set(depth, bucket);
-  });
-
-  return [...grouped.entries()]
-    .sort(([leftDepth], [rightDepth]) => rightDepth - leftDepth)
-    .map(([, roundMatches], index) => ({
-      label: `Round ${index + 1}`,
-      matches: [...roundMatches].sort((left, right) => left.match_id - right.match_id),
-    }));
-}
-
-function matchDestination(match: BracketMatch): string {
-  if (match.next_match_id && match.next_match_id > 0) {
-    return `Winner advances to #${match.next_match_id}`;
-  }
-
-  if (match.loser_next_match_id && match.loser_next_match_id > 0) {
-    return `Loser drops to #${match.loser_next_match_id}`;
-  }
-
-  return "";
-}
-
-function BracketMatchCard({
-  match,
-  accentClass,
-  incomingSlotLookup,
-}: {
-  match: BracketMatch;
-  accentClass: string;
-  incomingSlotLookup: Map<string, BracketMatch>;
-}) {
-  const destination = matchDestination(match);
-  const state = match.status || (match.result && match.result !== "" ? "completed" : "scheduled");
-  const team1Label = resolveBracketSlotLabel(match, "team1", incomingSlotLookup);
-  const team2Label = resolveBracketSlotLabel(match, "team2", incomingSlotLookup);
-
-  return (
-    <article className={`rounded-2xl border ${accentClass} bg-white/5 p-4 shadow-lg shadow-black/15`}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-mono uppercase tracking-[0.22em] text-white/35">Match</p>
-          <p className="mt-1 text-lg font-semibold text-white">#{match.match_id}</p>
-        </div>
-        <StatusBadge status={state} />
-      </div>
-
-      <div className="mt-4 space-y-2">
-        <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2">
-          <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-white/30">Team 1</p>
-          <p className={`mt-1 text-sm ${team1Label === "TBD" ? "text-white/45 italic" : "text-white/80"}`}>{team1Label}</p>
-        </div>
-        <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2">
-          <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-white/30">Team 2</p>
-          <p className={`mt-1 text-sm ${team2Label === "TBD" ? "text-white/45 italic" : "text-white/80"}`}>{team2Label}</p>
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-2 text-xs text-white/45">
-        <div className="flex items-center justify-between gap-3 rounded-lg bg-white/3 px-3 py-2">
-          <span className="uppercase tracking-[0.16em]">Scheduled</span>
-          <span>{formatDateTime(match.scheduled_at)}</span>
-        </div>
-        <div className="flex items-center justify-between gap-3 rounded-lg bg-white/3 px-3 py-2">
-          <span className="uppercase tracking-[0.16em]">Result</span>
-          <span className="text-white/75">{match.result && match.result !== "" ? match.result : "Pending"}</span>
-        </div>
-        {destination && (
-          <div className="rounded-lg border border-white/8 bg-black/15 px-3 py-2 text-white/55">
-            {destination}
-          </div>
-        )}
-      </div>
-    </article>
-  );
-}
-
-function buildSingleEliminationLayout(matches: BracketMatch[]): {
-  positions: Map<number, BracketPosition>;
-  connectors: Array<{ from: number; to: number }>;
-  boardWidth: number;
-  boardHeight: number;
-  roundLabels: string[];
-} {
-  const depthLookup = buildDepthLookup(matches);
-  const maxDepth = Math.max(0, ...depthLookup.values());
-  const roundCount = maxDepth + 1;
-  const columnGap = 220;
-  const rowGap = 78;
-  const cardWidth = 180;
-  const cardHeight = 52;
-
-  const childrenByParent = new Map<number, BracketMatch[]>();
-
-  matches.forEach((match) => {
-    if (!match.next_match_id) {
-      return;
-    }
-
-    const children = childrenByParent.get(match.next_match_id) ?? [];
-    children.push(match);
-    childrenByParent.set(match.next_match_id, children);
-  });
-
-  const positions = new Map<number, BracketPosition>();
-  const connectors: Array<{ from: number; to: number }> = [];
-  let leafIndex = 0;
-
-  const sortChildren = (children: BracketMatch[]): BracketMatch[] => [...children].sort((left, right) => {
-    if (left.next_match_slot === right.next_match_slot) {
-      return left.match_id - right.match_id;
-    }
-
-    if (left.next_match_slot === "team1") return -1;
-    if (right.next_match_slot === "team1") return 1;
-    return left.match_id - right.match_id;
-  });
-
-  const placeMatch = (match: BracketMatch): number => {
-    const existing = positions.get(match.match_id);
-    if (existing) {
-      return existing.y;
-    }
-
-    const roundIndex = maxDepth - (depthLookup.get(match.match_id) ?? 0);
-    const x = roundIndex * columnGap;
-    const children = sortChildren(childrenByParent.get(match.match_id) ?? []);
-
-    if (children.length === 0) {
-      const y = leafIndex * rowGap;
-      leafIndex += 1;
-      positions.set(match.match_id, { match, x, y, roundIndex });
-      return y;
-    }
-
-    const childYs = children.map((child) => placeMatch(child));
-    const y = (Math.min(...childYs) + Math.max(...childYs)) / 2;
-    positions.set(match.match_id, { match, x, y, roundIndex });
-
-    children.forEach((child) => {
-      connectors.push({ from: child.match_id, to: match.match_id });
-    });
-
-    return y;
-  };
-
-  const roots = matches
-    .filter((match) => !match.next_match_id)
-    .sort((left, right) => left.match_id - right.match_id);
-
-  roots.forEach((root) => {
-    placeMatch(root);
-  });
-
-  matches
-    .filter((match) => !positions.has(match.match_id))
-    .sort((left, right) => left.match_id - right.match_id)
-    .forEach((match) => {
-      placeMatch(match);
-    });
-
-  const boardHeight = Math.max(cardHeight, (Math.max(leafIndex, 1) - 1) * rowGap + cardHeight);
-  const boardWidth = roundCount * columnGap + cardWidth;
-  const roundLabels = Array.from({ length: roundCount }, (_, index) => `Round ${index + 1}`);
-
-  return { positions, connectors, boardWidth, boardHeight, roundLabels };
-}
-
-function SingleEliminationBracket({
-  matches,
-  onSelectMatch,
-  incomingSlotLookup,
-}: {
-  matches: BracketMatch[];
-  onSelectMatch: (matchId: number) => void;
-  incomingSlotLookup: Map<string, BracketMatch>;
-}) {
-  const layout = useMemo(() => buildSingleEliminationLayout(matches), [matches]);
-
-  if (matches.length === 0) {
-    return <Empty message="No bracket rounds available yet." />;
-  }
-
-  return (
-    <div className="overflow-x-auto">
-      <div className="min-w-max rounded-3xl border border-white/10 bg-linear-to-b from-white/10 to-white/5 p-5 text-white shadow-lg shadow-black/20 backdrop-blur-md">
-        <div className="mb-5 flex items-center gap-3 border-b border-white/10 pb-3">
-          <div>
-            <p className="text-[11px] font-mono uppercase tracking-[0.28em] text-white/35">Bracket</p>
-            <h3 className="text-sm font-semibold text-white">Single Elimination</h3>
-          </div>
-          <div className="ml-auto hidden gap-2 text-[11px] font-mono uppercase tracking-[0.18em] text-white/35 md:flex">
-            {layout.roundLabels.map((label) => (
-              <span key={label} className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{label}</span>
-            ))}
-          </div>
-        </div>
-
-        <div className="relative" style={{ width: layout.boardWidth + 80, height: layout.boardHeight + 40 }}>
-          <svg
-            className="pointer-events-none absolute inset-0"
-            width={layout.boardWidth + 80}
-            height={layout.boardHeight + 40}
-            viewBox={`0 0 ${layout.boardWidth + 80} ${layout.boardHeight + 40}`}
-            fill="none"
-          >
-            <g stroke="rgba(148,163,184,0.35)" strokeWidth="1.5" strokeLinecap="square">
-              {layout.connectors.map(({ from, to }, index) => {
-                const child = layout.positions.get(from);
-                const parent = layout.positions.get(to);
-                if (!child || !parent) {
-                  return <></>;
-                }
-
-                const childRight = 40 + child.x + 180;
-                const childCenterY = 20 + child.y + 26;
-                const parentLeft = 40 + parent.x;
-                const parentCenterY = 20 + parent.y + 26;
-                const elbowX = childRight + 16;
-
-                return (
-                  <g key={`${from}-${to}-${index}`}>
-                    <line x1={childRight} y1={childCenterY} x2={elbowX} y2={childCenterY} />
-                    <line x1={elbowX} y1={childCenterY} x2={elbowX} y2={parentCenterY} />
-                    <line x1={elbowX} y1={parentCenterY} x2={parentLeft} y2={parentCenterY} />
-                  </g>
-                );
-              })}
-            </g>
-          </svg>
-
-          {matches.map((match) => {
-            const position = layout.positions.get(match.match_id);
-            if (!position) {
-              return <></>;
-            }
-
-            return (
-              <button
-                key={match.match_id}
-                type="button"
-                onClick={() => onSelectMatch(match.match_id)}
-                className="absolute w-45 rounded-xl border border-white/10 bg-black/35 px-3 py-2 text-left shadow-lg shadow-black/20 backdrop-blur-md transition hover:border-cyan-400/30 hover:bg-white/8"
-                style={{ left: 40 + position.x, top: 20 + position.y }}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-white/45">Match #{match.match_id}</span>
-                  <span className="text-[10px] uppercase tracking-[0.16em] text-cyan-100/80">
-                    {match.result && match.result !== "" ? match.result : (match.status || "scheduled")}
-                  </span>
-                </div>
-                <div className="mt-2 space-y-1 text-xs text-white/75">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-white/35">T1</span>
-                    <span className="truncate">{resolveBracketSlotLabel(match, "team1", incomingSlotLookup)}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-white/35">T2</span>
-                    <span className="truncate">{resolveBracketSlotLabel(match, "team2", incomingSlotLookup)}</span>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function TournamentDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const canRegisterTeam = !!user;
-
-  const EMPTY_TOURNAMENT: TournamentDto = {
-    tournament_id: 0,
-    name: "",
-    game_id: 0,
-    format: "single_elimination",
-    max_teams: 0,
-    entry_deadline: "",
-    prize_pool: 0,
-    status: "upcoming",
-    createdAt: "",
-    updatedAt: "",
-  };
 
   const [tournament, setTournament] = useState<TournamentDto>(EMPTY_TOURNAMENT);
   const [matches, setMatches] = useState<BracketMatch[]>([]);
@@ -474,7 +88,7 @@ export default function TournamentDetailsPage() {
     }
 
     const registrationCountRes = await tournamentApi.getRegistrationCount(tournamentId);
-    const registrationsRes = isAdmin ? await tournamentApi.getRegistrations(tournamentId) : { success: true, message: "", data: [] as TournamentRegistrationDto[] };
+    const registrationsRes = user ? await tournamentApi.getRegistrations(tournamentId) : { success: true, message: "", data: [] as TournamentRegistrationDto[] };
 
     return {
       tournament: tournamentRes.data,
@@ -483,12 +97,29 @@ export default function TournamentDetailsPage() {
       registrations: registrationsRes.success ? (registrationsRes.data ?? []) : [],
       error: matchesRes.success ? "" : (matchesRes.message || "Tournament loaded, but matches failed to load."),
     };
-  }, [id, isAdmin]);
+  }, [id, user]);
+
+  const loadPageData = useCallback(async () => {
+    setIsLoading(true);
+    setError("");
+    const result = await fetchTournamentData();
+
+    if (result.error) {
+      setError(result.error);
+    }
+
+    setTournament(result.tournament ?? EMPTY_TOURNAMENT);
+    setMatches(result.matches ?? []);
+    setRegistrationCount(result.registrationCount ?? 0);
+    setRegistrations(result.registrations ?? []);
+
+    setIsLoading(false);
+  }, [fetchTournamentData]);
 
   useEffect(() => {
     let active = true;
 
-    async function loadPageData() {
+    async function loadInitialPageData() {
       setIsLoading(true);
       setError("");
       const result = await fetchTournamentData();
@@ -507,7 +138,7 @@ export default function TournamentDetailsPage() {
       setIsLoading(false);
     }
 
-    void loadPageData();
+    void loadInitialPageData();
 
     return () => {
       active = false;
@@ -528,14 +159,7 @@ export default function TournamentDetailsPage() {
       return;
     }
 
-    const result = await fetchTournamentData();
-    if (result.error) {
-      setError(result.error);
-    }
-    setTournament(result.tournament ?? EMPTY_TOURNAMENT);
-    setMatches(result.matches ?? []);
-    setRegistrationCount(result.registrationCount ?? 0);
-    setRegistrations(result.registrations ?? []);
+    await loadPageData();
   }
 
   const sortedMatches = useMemo(
@@ -600,31 +224,7 @@ export default function TournamentDetailsPage() {
     );
   }
 
-  function renderRoundRobinTable() {
-    return (
-      <Table>
-        <TableHead columns={["Match ID", "Team 1", "Team 2", "Scheduled", "Result"]} />
-        <tbody>
-          {roundRobinMatches.map((match) => (
-            <tr
-              key={match.match_id}
-              className="border-b last:border-b-0 border-white/6 hover:bg-white/3 transition-colors cursor-pointer"
-              role="button"
-              tabIndex={0}
-              onClick={() => setSelectedMatchId(match.match_id)}
-              onKeyDown={(e) => { if (e.key === 'Enter') setSelectedMatchId(match.match_id); }}
-            >
-              <td className="px-5 py-4 text-white/85 font-medium">#{match.match_id}</td>
-              <td className="px-5 py-4 text-white/70">{formatTeamId(match.team1_id)}</td>
-              <td className="px-5 py-4 text-white/70">{formatTeamId(match.team2_id)}</td>
-              <td className="px-5 py-4 text-white/70">{formatDateTime(match.scheduled_at)}</td>
-              <td className="px-5 py-4 text-white/80">{match.result && match.result !== "" ? match.result : "-"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
-    );
-  }
+
 
   if (isLoading) {
     return (
@@ -689,7 +289,7 @@ export default function TournamentDetailsPage() {
 
       {canRegisterTeam ? (
         registrationCount < tournament.max_teams ? (
-          <TournamentTeamRegistrationPanel tournament={tournament} />
+          <TournamentTeamRegistrationPanel tournament={tournament} onRegistered={loadPageData} />
         ) : (
           <div className="mb-8 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
             This tournament is full. Team registration is closed.
@@ -705,38 +305,27 @@ export default function TournamentDetailsPage() {
         <section className="mb-8 rounded-2xl border border-white/10 bg-linear-to-b from-white/10 to-white/5 p-5 shadow-lg shadow-black/20 backdrop-blur-md">
           <PageHeader eyebrow="Admin" title="Tournament Registrations" />
 
+          <AdminRegistrationsPanel registrations={registrations} isConfirmingId={isConfirmingId} onConfirm={confirmRegistration} />
+        </section>
+      )}
+
+      {!isAdmin && user && (
+        <section className="mb-8 rounded-2xl border border-white/10 bg-linear-to-b from-white/10 to-white/5 p-5 shadow-lg shadow-black/20 backdrop-blur-md">
+          <PageHeader eyebrow="Registrations" title="Registered Teams" />
+
           {registrations.length === 0 ? (
             <div className="rounded-xl border border-white/8 bg-white/3">
-              <Empty message="No registrations found for this tournament." />
+              <Empty message="No teams have registered for this tournament yet." />
             </div>
           ) : (
-            <Table>
-              <TableHead columns={["Registration ID", "Team", "Status", "Registered", "Action"]} />
-              <tbody>
-                {registrations.map((registration) => (
-                  <tr key={registration.id} className="border-b last:border-b-0 border-white/6">
-                    <td className="px-5 py-4 text-white/85 font-medium">#{registration.id}</td>
-                    <td className="px-5 py-4 text-white/70">{registration.team_name && registration.team_name !== "" ? registration.team_name : `Team #${registration.team_id}`} (#{registration.team_id})</td>
-                    <td className="px-5 py-4 text-white/70">{registration.status}</td>
-                    <td className="px-5 py-4 text-white/70">{formatDateTime(registration.registered_at)}</td>
-                    <td className="px-5 py-4 text-white/80">
-                      {registration.status === "pending" ? (
-                        <button
-                          type="button"
-                          onClick={() => void confirmRegistration(registration.id)}
-                          disabled={isConfirmingId === registration.id}
-                          className="rounded-lg border border-cyan-300/40 bg-cyan-300/15 px-3 py-2 text-xs font-medium text-cyan-100 transition hover:bg-cyan-300/20 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {isConfirmingId === registration.id ? "Confirming..." : "Confirm"}
-                        </button>
-                      ) : (
-                        <span className="text-xs text-white/35">Confirmed</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {registrations.map((registration) => (
+                <div key={registration.id} className="rounded-xl border border-white/8 bg-white/3 px-4 py-4">
+                  <p className="text-sm font-semibold text-white">{registration.team_name || `Team #${registration.team_id}`}</p>
+                  <p className="mt-1 text-xs uppercase tracking-widest text-white/35">Team #{registration.team_id}</p>
+                </div>
+              ))}
+            </div>
           )}
         </section>
       )}
@@ -748,7 +337,7 @@ export default function TournamentDetailsPage() {
           <Empty message="No matches found for this tournament." />
         </div>
       ) : tournament.format === "round_robin" ? (
-        renderRoundRobinTable()
+        <RoundRobinTable matches={roundRobinMatches} onSelectMatch={setSelectedMatchId} />
       ) : tournament.format === "single_elimination" ? (
         <section className="rounded-2xl border border-white/10 bg-linear-to-b from-white/10 to-white/5 p-5 shadow-lg shadow-black/20 backdrop-blur-md">
           <PageHeader eyebrow="Bracket" title="Single Elimination" />

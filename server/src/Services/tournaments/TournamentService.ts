@@ -262,8 +262,8 @@ export class TournamentService implements ITournamentService {
         }
 
         const alreadyRegistered = await this.registrationRepository.findByTournamentAndTeam(tournamentId, dto.teamId);
-        if (alreadyRegistered) {
-          return { success: false, statusCode: 409, error: "This team is already registered for the tournament." };
+        if (alreadyRegistered.id !== 0) {
+            return { success: false, statusCode: 409, error: "This team is already registered for this tournament." };
         }
 
         const confirmedCount = await this.registrationRepository.countByTournament(tournamentId);

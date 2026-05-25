@@ -13,7 +13,7 @@ export class TournamentController {
         this.router.get("/tournaments", this.getAll.bind(this));
         this.router.get("/tournaments/game/:gameId", this.getByGameId.bind(this));
         this.router.get("/tournaments/:id/registrations/count", this.getRegistrationCount.bind(this));
-        this.router.get("/tournaments/:id/registrations", authenticate, authorize(UserRole.ADMIN), this.getRegistrations.bind(this));
+        this.router.get("/tournaments/:id/registrations", authenticate, this.getRegistrations.bind(this));
         this.router.patch("/tournaments/:id/registrations/:registrationId/confirm", authenticate, authorize(UserRole.ADMIN), this.confirmRegistration.bind(this));
         this.router.get("/tournaments/:id", this.getById.bind(this));
         this.router.post("/tournaments", authenticate, authorize(UserRole.ADMIN), this.create.bind(this));
