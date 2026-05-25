@@ -28,7 +28,7 @@ const DEFAULT_TARGETS = [
 ];
 
 const MAX_BODY_SIZE = 10 * 1024 * 1024;
-const DEFAULT_HEALTH_PATH = "/api/v1";
+const DEFAULT_HEALTH_PATH = "/api/v1/health/check";
 const DEFAULT_HEALTH_INTERVAL_MS = 5000;
 const DEFAULT_HEALTH_TIMEOUT_MS = 1500;
 
@@ -273,10 +273,23 @@ async function collectBody(request: IncomingMessage): Promise<Buffer> {
 
 function writeError(response: ServerResponse, status: number, message: string): void {
   if (!response.headersSent) {
-    response.writeHead(status, { "content-type": "application/json" });
+    response.writeHead(status, {
+      "content-type": "application/json",
+      "access-control-allow-origin": "*",
+      "access-control-allow-headers": "content-type, authorization",
+    });
   }
 
   response.end(JSON.stringify({ error: message }));
+}
+
+function writeJson(response: ServerResponse, status: number, payload: unknown): void {
+  response.writeHead(status, {
+    "content-type": "application/json",
+    "access-control-allow-origin": "*",
+    "access-control-allow-headers": "content-type, authorization",
+  });
+  response.end(JSON.stringify(payload));
 }
 
 function toRequestMeta(request: IncomingMessage): RequestMeta {
@@ -376,8 +389,7 @@ startHealthProbes(targets);
 
 const server = http.createServer(async (request, response) => {
   if (request.url === "/__lb/status") {
-    response.writeHead(200, { "content-type": "application/json" });
-    response.end(JSON.stringify({
+    writeJson(response, 200, {
       strategy,
       lbPort,
       targets: targets.map((target) => ({
@@ -389,7 +401,7 @@ const server = http.createServer(async (request, response) => {
         lastProbeAt: target.lastProbeAt,
         lastProbeError: target.lastProbeError,
       })),
-    }));
+    });
     return;
   }
 
