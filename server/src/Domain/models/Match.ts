@@ -7,6 +7,8 @@ export interface MatchRow {
   winner_team_id: number | null;
   next_match_id: number | null;
   next_match_slot: 'team1' | 'team2' | null;
+  loser_next_match_id: number | null;
+  loser_next_match_slot: 'team1' | 'team2' | null;
   status: string;
 
   scheduled_at: string;
@@ -26,6 +28,8 @@ export class Match {
     public winner_team_id: number | null = null,
     public next_match_id: number | null = null,
     public next_match_slot: 'team1' | 'team2' | null = null,
+    public loser_next_match_id: number | null = null,
+    public loser_next_match_slot: 'team1' | 'team2' | null = null,
     public status: string = 'scheduled',
 
     public scheduled_at: Date = new Date(),
@@ -43,6 +47,8 @@ export class Match {
       row.winner_team_id,
       row.next_match_id,
       row.next_match_slot,
+      row.loser_next_match_id,
+      row.loser_next_match_slot,
       row.status,
       new Date(row.scheduled_at),
       row.result,

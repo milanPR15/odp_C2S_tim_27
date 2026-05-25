@@ -7,4 +7,7 @@ export interface IMatchWriteRepository {
   addPlayer(matchId: number, userId: number, teamId: number, performanceNotes?: string): Promise<boolean>;
   removePlayer(matchId: number, userId: number): Promise<boolean>;
   advanceWinnerToNextMatch(nextMatchId: number, slot: 'team1' | 'team2', winnerTeamId: number): Promise<boolean>;
+  advanceLoserToNextMatch(nextMatchId: number, slot: 'team1' | 'team2', loserTeamId: number): Promise<boolean>;
+  updateNextMatch(matchId: number, nextMatchId: number, slot: 'team1' | 'team2'): Promise<boolean>;
+  updateLoserNextMatch(matchId: number, nextMatchId: number, slot: 'team1' | 'team2'): Promise<boolean>;
 }

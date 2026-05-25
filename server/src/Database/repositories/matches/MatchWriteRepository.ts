@@ -106,4 +106,72 @@ async removePlayer(matchId: number, userId: number): Promise<boolean> {
             conn.release();
         }
     }
+
+      async advanceLoserToNextMatch(nextMatchId: number, slot: 'team1' | 'team2', loserTeamId: number): Promise<boolean> {
+        const dbConn = await this.db.getWriteConnection();
+        if (!dbConn) return false;
+        const { conn } = dbConn;
+
+        try {
+          const column = slot === 'team1' ? 'team1_id' : 'team2_id';
+          const [result] = await conn.execute(
+            `UPDATE matches
+            SET ${column} = ?
+            WHERE match_id = ?`,
+            [loserTeamId, nextMatchId]
+          );
+          return (result as ResultSetHeader).affectedRows > 0;
+        } catch (err) {
+          console.error(err);
+          return false;
+        } finally {
+          conn.release();
+        }
+      }
+
+      async updateNextMatch(matchId: number, nextMatchId: number, slot: 'team1' | 'team2'): Promise<boolean> {
+        const dbConn = await this.db.getWriteConnection();
+        if (!dbConn) return false;
+        const { conn } = dbConn;
+
+        try {
+          const [result] = await conn.execute(
+            `UPDATE matches
+            SET next_match_id = ?,
+              next_match_slot = ?
+            WHERE match_id = ?`,
+            [nextMatchId, slot, matchId]
+          );
+
+          return (result as ResultSetHeader).affectedRows > 0;
+        } catch (err) {
+          console.error(err);
+          return false;
+        } finally {
+          conn.release();
+        }
+      }
+
+      async updateLoserNextMatch(matchId: number, nextMatchId: number, slot: 'team1' | 'team2'): Promise<boolean> {
+        const dbConn = await this.db.getWriteConnection();
+        if (!dbConn) return false;
+        const { conn } = dbConn;
+
+        try {
+          const [result] = await conn.execute(
+            `UPDATE matches
+            SET loser_next_match_id = ?,
+              loser_next_match_slot = ?
+            WHERE match_id = ?`,
+            [nextMatchId, slot, matchId]
+          );
+
+          return (result as ResultSetHeader).affectedRows > 0;
+        } catch (err) {
+          console.error(err);
+          return false;
+        } finally {
+          conn.release();
+        }
+      }
 }

@@ -102,6 +102,7 @@ export class TeamReadRepository implements ITeamReadRepository {
           ON t.team_id = tr.team_id
         WHERE tr.tournament_id = ?
           AND tr.status = 'confirmed'
+        ORDER BY COALESCE(tr.seed, 2147483647) ASC, tr.registered_at ASC, tr.id ASC
         `,
         [tournamentId]
       );
