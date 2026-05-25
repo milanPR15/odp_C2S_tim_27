@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useState, useRef } from "react";
+import type { FormEvent } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { teamsApi } from "../../api_services/teams/TeamsAPIService";
 import { usersApi } from "../../api_services/users/UsersAPIService";
 import { useAuth } from "../../hooks/auth/useAuthHook";
@@ -11,7 +12,7 @@ import {
   StatCard,
   Modal,
 } from "../../components/ui/UI";
-import type { TeamDto } from "../../models/team/TeamTypes";
+import type { TeamDto, UpdateTeamDto } from "../../models/team/TeamTypes";
 import type { UserDto } from "../../models/user/UserTypes";
 
 function formatDate(value: string | Date | undefined): string {
@@ -29,6 +30,18 @@ export default function TeamDetailsPage() {
   const [error, setError] = useState("");
 
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState("");
+  const [updateSuccess, setUpdateSuccess] = useState("");
+  const [editForm, setEditForm] = useState<UpdateTeamDto>({ team_name: "", tag: "", description: "", logo: "" });
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [removingMemberIds, setRemovingMemberIds] = useState<number[]>([]);
+  const [removeError, setRemoveError] = useState("");
+  const [logoFileName, setLogoFileName] = useState("");
+  const editLogoInputRef = useRef<HTMLInputElement>(null);
   const [users, setUsers] = useState<UserDto[]>([]);
   const [isUsersLoading, setIsUsersLoading] = useState(false);
   const [inviteError, setInviteError] = useState("");
@@ -80,6 +93,147 @@ export default function TeamDetailsPage() {
       }
       setIsUsersLoading(false);
     }
+  }
+
+  function openEditModal() {
+    if (!team) return;
+    setEditForm({
+      team_name: team.team_name ?? "",
+      tag: team.tag ?? "",
+      description: team.description ?? "",
+      logo: team.logo ?? "",
+    });
+    setUpdateError("");
+    setUpdateSuccess("");
+    setIsEditModalOpen(true);
+  }
+
+  function openDeleteModal() {
+    setDeleteError("");
+    setIsDeleteModalOpen(true);
+  }
+
+  const navigate = useNavigate();
+
+  async function handleDeleteTeam() {
+    if (!team) return;
+    setDeleteError("");
+    setIsDeleting(true);
+    try {
+      if (!user || user.id !== team.captain_id) {
+        setDeleteError("Only the team captain can delete this team.");
+        return;
+      }
+      const res = await teamsApi.deleteTeam(team.team_id);
+      if (!res.success) {
+        setDeleteError(res.message || "Failed to delete team.");
+        return;
+      }
+      // on success, navigate back to teams list
+      navigate("/teams");
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
+    }
+  }
+
+  async function handleRemoveMember(memberId: number) {
+    if (!team) return;
+    if (!user || user.id !== team.captain_id) {
+      setRemoveError("Only the team captain can remove members.");
+      return;
+    }
+    if (!window.confirm("Are you sure you want to remove this member from the team?")) return;
+    setRemoveError("");
+    setRemovingMemberIds((s) => [...s, memberId]);
+    try {
+      const res = await teamsApi.removeMember(team.team_id, memberId);
+      if (!res.success) {
+        setRemoveError(res.message || "Failed to remove member.");
+        return;
+      }
+      setTeam((prev) => prev ? { ...prev, members: prev.members?.filter(m => m.user_id !== memberId) } : prev);
+    } finally {
+      setRemovingMemberIds((s) => s.filter(id => id !== memberId));
+    }
+  }
+
+  async function handleUpdateTeam(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!team) return;
+    setUpdateError("");
+    setUpdateSuccess("");
+    setIsUpdating(true);
+    try {
+      const payload: UpdateTeamDto = {
+        team_name: editForm.team_name?.trim() ?? "",
+        tag: editForm.tag?.trim().toUpperCase() ?? "",
+        description: editForm.description?.trim() || undefined,
+        logo: editForm.logo?.trim() || undefined,
+      };
+
+      const res = await teamsApi.updateTeam(team.team_id, payload);
+      if (!res.success || !res.data) {
+        setUpdateError(res.message || "Failed to update team.");
+        return;
+      }
+
+      setTeam(res.data);
+      setUpdateSuccess("Team updated successfully.");
+      setIsEditModalOpen(false);
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
+  function handleEditLogoUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    setUpdateError("");
+    setUpdateSuccess("");
+
+    if (!file) {
+      setEditForm((prev) => ({ ...prev, logo: "" }));
+      setLogoFileName("");
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setEditForm((prev) => ({ ...prev, logo: "" }));
+      setLogoFileName("");
+      setUpdateError("Please upload an image file for the logo.");
+      event.target.value = "";
+      return;
+    }
+
+    const maxFileSize = 5 * 1024 * 1024;
+    if (file.size > maxFileSize) {
+      setEditForm((prev) => ({ ...prev, logo: "" }));
+      setLogoFileName("");
+      setUpdateError("Logo image must be 5 MB or smaller.");
+      event.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === "string") {
+        setEditForm((prev) => ({ ...prev, logo: result }));
+        setLogoFileName(file.name);
+      } else {
+        setEditForm((prev) => ({ ...prev, logo: "" }));
+        setLogoFileName("");
+        setUpdateError("Failed to read the selected image.");
+        event.target.value = "";
+      }
+    };
+    reader.onerror = () => {
+      setEditForm((prev) => ({ ...prev, logo: "" }));
+      setLogoFileName("");
+      setUpdateError("Failed to read the selected image.");
+      event.target.value = "";
+    };
+    reader.readAsDataURL(file);
   }
 
   async function handleSendInvite(gamer_tag: string) {
@@ -143,12 +297,26 @@ export default function TeamDetailsPage() {
         </div>
 
         {user && user.id === team.captain_id && (
-          <button
-            onClick={openInviteModal}
-            className="self-start rounded-lg bg-cyan-500/20 px-8 py-4 text-sm font-medium text-cyan-300 hover:bg-cyan-500/30 transition"
-          >
-            Invite Members
-          </button>
+          <div className="flex gap-3 self-start">
+            <button
+              onClick={openInviteModal}
+              className="rounded-lg bg-cyan-500/20 px-6 py-3 text-sm font-medium text-cyan-300 hover:bg-cyan-500/30 transition"
+            >
+              Invite Members
+            </button>
+            <button
+              onClick={openEditModal}
+              className="rounded-lg bg-violet-500/20 px-6 py-3 text-sm font-medium text-violet-200 hover:bg-violet-500/30 transition"
+            >
+              Update Team
+            </button>
+            <button
+              onClick={openDeleteModal}
+              className="rounded-lg bg-red-500/10 px-6 py-3 text-sm font-medium text-red-300 hover:bg-red-500/20 transition"
+            >
+              Delete Team
+            </button>
+          </div>
         )}
       </div>
 
@@ -189,6 +357,7 @@ export default function TeamDetailsPage() {
           <h2 className="mb-4 text-sm font-mono uppercase tracking-widest text-white/40">
             Team Members
           </h2>
+          {removeError && <div className="mb-4"><ErrorBox message={removeError} /></div>}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {team.members.map((member) => (
               <div
@@ -209,6 +378,17 @@ export default function TeamDetailsPage() {
                   </div>
                   <div className="text-xs text-white/40">Joined {formatDate(member.joined_at)}</div>
                 </div>
+                {user && user.id === team.captain_id && member.user_id !== team.captain_id && (
+                  <div className="ml-auto">
+                    <button
+                      onClick={() => handleRemoveMember(member.user_id)}
+                      disabled={removingMemberIds.includes(member.user_id)}
+                      className="inline-flex h-9 items-center gap-2 rounded-lg bg-red-500/10 px-3 text-xs font-semibold text-red-300 hover:bg-red-500/20 disabled:opacity-50"
+                    >
+                      {removingMemberIds.includes(member.user_id) ? 'Removing...' : 'Remove'}
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -264,6 +444,150 @@ export default function TeamDetailsPage() {
             {!isUsersLoading && users.length > 0 && users.filter(u => !team?.members?.some(m => m.user_id === u.id)).length === 0 && (
               <p className="text-sm text-center text-white/30 py-4">No users available to invite.</p>
             )}
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setUpdateError("");
+          setUpdateSuccess("");
+        }}
+        title="Update Team"
+      >
+        <form onSubmit={handleUpdateTeam} className="flex flex-col gap-4">
+          {updateError && <ErrorBox message={updateError} />}
+          {updateSuccess && (
+            <div className="border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 text-sm px-4 py-3 rounded-xl">
+              {updateSuccess}
+            </div>
+          )}
+
+          <label className="flex flex-col gap-2">
+            <span className="text-[11px] uppercase tracking-[0.18em] text-white/45 font-medium">Team Name</span>
+            <input
+              value={editForm.team_name}
+              onChange={(e) => setEditForm((p) => ({ ...p, team_name: e.target.value }))}
+              className="h-11 w-full rounded-xl border border-white/12 bg-black/30 px-3 text-sm text-white"
+            />
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="text-[11px] uppercase tracking-[0.18em] text-white/45 font-medium">Tag</span>
+            <input
+              value={editForm.tag}
+              onChange={(e) => setEditForm((p) => ({ ...p, tag: e.target.value }))}
+              maxLength={5}
+              className="h-11 w-full rounded-xl border border-white/12 bg-black/30 px-3 text-sm text-white"
+            />
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="text-[11px] uppercase tracking-[0.18em] text-white/45 font-medium">Description</span>
+            <textarea
+              value={editForm.description || ""}
+              onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
+              className="h-28 w-full rounded-xl border border-white/12 bg-black/30 px-3 text-sm text-white p-3"
+            />
+          </label>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-[11px] uppercase tracking-[0.18em] text-white/45 font-medium">Team Logo</span>
+            {editForm.logo ? (
+              <div className="mt-1 flex items-center gap-4 border border-white/8 bg-white/5 rounded-xl p-3 pr-4">
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-black flex items-center justify-center">
+                  <img src={editForm.logo} alt="Preview" className="h-full w-full object-cover" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-white/60 truncate">{logoFileName || "Current logo"}</p>
+                  <div className="mt-1 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditForm((prev) => ({ ...prev, logo: "" }));
+                        setLogoFileName("");
+                        if (editLogoInputRef.current) editLogoInputRef.current.value = "";
+                      }}
+                      className="text-[10px] uppercase tracking-wider text-red-300 hover:text-red-200 transition-colors"
+                    >
+                      Remove
+                    </button>
+                    <label className="text-[10px] uppercase tracking-wider text-white/60 cursor-pointer">
+                      <span className="px-2 py-1 bg-white/10 rounded">Replace</span>
+                      <input
+                        ref={editLogoInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleEditLogoUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <label className={`h-11 w-full rounded-xl border border-white/12 bg-black/30 px-3 text-sm text-white flex items-center justify-between cursor-pointer group hover:border-violet-300/40`}>
+                <span className="text-white/40 group-hover:text-white/60 transition-colors">Choose image file...</span>
+                <span className="text-xs bg-white/10 px-2 py-1 rounded text-white/60 group-hover:text-white/80 transition-colors">Browse</span>
+                <input
+                  ref={editLogoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleEditLogoUpload}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(false)}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/12 px-4 text-sm font-medium text-white/80"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isUpdating}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-violet-500 px-4 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {isUpdating ? "Updating..." : "Update Team"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setDeleteError("");
+        }}
+        title="Delete Team"
+      >
+        <div className="flex flex-col gap-4">
+          {deleteError && <ErrorBox message={deleteError} />}
+          <p className="text-sm text-white/70">Are you sure you want to delete this team? This action cannot be undone.</p>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsDeleteModalOpen(false)}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/12 px-4 text-sm font-medium text-white/80"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDeleteTeam}
+              disabled={isDeleting}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {isDeleting ? "Deleting..." : "Delete Team"}
+            </button>
           </div>
         </div>
       </Modal>

@@ -4,6 +4,7 @@
     "sourceMap": true,
     "target": "esnext",
     "module": "commonjs",
+    "rootDir": "src",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": true,
@@ -13,6 +14,6 @@
   "include": [
     "./*.js",
     "src/**/*.ts",
-    "test/**/*.ts",
+    "test/**/*.ts"
   ],
 }
