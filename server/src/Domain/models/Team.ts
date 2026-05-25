@@ -1,3 +1,5 @@
+import { RowDataPacket } from "mysql2/promise";
+
 export class Team{
     public constructor(
         public team_id: number=0,
@@ -9,7 +11,7 @@ export class Team{
         public updatedAt: Date = new Date()
     ){}
 
-    static fromDB(row: any): Team {
+    static fromDB(row: RowDataPacket): Team {
     return new Team(
       row.team_id,
       row.team_name,

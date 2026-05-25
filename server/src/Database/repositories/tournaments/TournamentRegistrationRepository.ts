@@ -30,7 +30,7 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
       row.id,
       row.tournament_id,
       row.team_id,
-      row.status as any,
+      row.status as RegistrationStatus,
       row.seed,
       row.registered_at instanceof Date ? row.registered_at : new Date(row.registered_at),
       selectedPlayerIds

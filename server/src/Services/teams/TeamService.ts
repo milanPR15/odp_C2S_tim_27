@@ -11,6 +11,8 @@ import { TeamInvitation } from "../../Domain/models/TeamInvitation";
 import { InvitationStatus } from "../../Domain/enums/InvitationStatus";
 import { ILoggerService } from "../../Domain/services/logger/ILoggerService";
 import { Result } from "../../Domain/types/Result";
+import { UserRole } from "../../Domain/enums/UserRole";
+import { TeamRole } from "../../Domain/enums/TeamRole";
 
 export class TeamService implements ITeamService {
 
@@ -51,7 +53,7 @@ export class TeamService implements ITeamService {
           user_id: user.id,
           gamer_tag: user.gamer_tag,
           full_name: user.full_name,
-          role: 'captain' as any,
+          role: TeamRole.CAPTAIN,
           joined_at: new Date()
         }]
       )
@@ -60,7 +62,7 @@ export class TeamService implements ITeamService {
 
   private async toTeamDto(team: Team): Promise<TeamDto> {
     const members = await this.teamReadRepo.findMembers(team.team_id);
-    const captain = members.find(m => m.role === 'captain');
+    const captain = members.find(m => m.role === TeamRole.CAPTAIN);
     
     let captainTag = "";
     if (captain) {
@@ -115,7 +117,7 @@ export class TeamService implements ITeamService {
 
   async updateTeam(teamId: number, userId: number, dto: Partial<CreateTeamDto>): Promise<Result<TeamDto>> {
     const members = await this.teamReadRepo.findMembers(teamId);
-    const isCaptain = members.some(m => m.user_id === userId && m.role === 'captain');
+    const isCaptain = members.some(m => m.user_id === userId && m.role === TeamRole.CAPTAIN);
     
     if (!isCaptain) {
       this.logger.warn("TeamService", `User ${userId} attempted to update team ${teamId} without captain rights.`);
@@ -130,7 +132,7 @@ export class TeamService implements ITeamService {
 
   async deleteTeam(teamId: number, userId: number): Promise<Result<boolean>> {
     const members = await this.teamReadRepo.findMembers(teamId);
-    const isCaptain = members.some(m => m.user_id === userId && m.role === 'captain');
+    const isCaptain = members.some(m => m.user_id === userId && m.role === TeamRole.CAPTAIN);
     
     if (!isCaptain) {
       this.logger.warn("TeamService", `User ${userId} attempted to delete team ${teamId} without captain rights.`);
@@ -144,19 +146,19 @@ export class TeamService implements ITeamService {
 
   async addMember(teamId: number, captainId: number, targetUserId: number): Promise<Result<boolean>> {
     const members = await this.teamReadRepo.findMembers(teamId);
-    const isCaptain = members.some(m => m.user_id === captainId && m.role === 'captain');
+    const isCaptain = members.some(m => m.user_id === captainId && m.role === TeamRole.CAPTAIN);
     if (!isCaptain) {
       this.logger.warn("TeamService", `User ${captainId} attempted to add member to team ${teamId} without captain rights.`);
       return { success: false, error: "Unauthorized. You are not the captain of this team.", statusCode: 403 };
     }
-    const success = await this.teamWriteRepo.addMember(teamId, targetUserId, 'member');
+    const success = await this.teamWriteRepo.addMember(teamId, targetUserId, TeamRole.MEMBER);
     if (!success) return { success: false, error: "Failed to add member", statusCode: 400 };
     return { success: true, data: true };
   }
 
   async removeMember(teamId: number, requesterId: number, targetUserId: number): Promise<Result<boolean>> {
     const members = await this.teamReadRepo.findMembers(teamId);
-    const isCaptain = members.some(m => m.user_id === requesterId && m.role === 'captain');
+    const isCaptain = members.some(m => m.user_id === requesterId && m.role === TeamRole.CAPTAIN);
     const isSelfRemoval = requesterId === targetUserId;
 
     if (!isCaptain && !isSelfRemoval) {
@@ -171,7 +173,7 @@ export class TeamService implements ITeamService {
 
   async transferCaptain(teamId: number, currentCaptainId: number, newCaptainId: number): Promise<Result<boolean>> {
     const members = await this.teamReadRepo.findMembers(teamId);
-    const isCurrentCaptain = members.some(m => m.user_id === currentCaptainId && m.role === 'captain');
+    const isCurrentCaptain = members.some(m => m.user_id === currentCaptainId && m.role === TeamRole.CAPTAIN);
 
     if (!isCurrentCaptain) {
       this.logger.warn("TeamService", `User ${currentCaptainId} attempted to transfer captaincy of team ${teamId} without proper rights.`);
@@ -197,7 +199,7 @@ export class TeamService implements ITeamService {
       return { success: false, error: "Team not found", statusCode: 404 };
     }
 
-    const isCaptain = members.some((m) => m.user_id === captainId && m.role === 'captain');
+    const isCaptain = members.some((m) => m.user_id === captainId && m.role === TeamRole.CAPTAIN);
     if (!isCaptain) {
       return { success: false, error: "Only team captain can invite members", statusCode: 403 };
     }
@@ -243,7 +245,7 @@ export class TeamService implements ITeamService {
     }
 
     if (accept) {
-      const added = await this.teamWriteRepo.addMember(invite.team_id, userId, 'member');
+      const added = await this.teamWriteRepo.addMember(invite.team_id, userId, TeamRole.MEMBER);
       if (!added) {
         return { success: false, error: "Failed to add member to team", statusCode: 500 };
       }
@@ -261,7 +263,7 @@ export class TeamService implements ITeamService {
     const members = await this.teamReadRepo.findMembers(teamId);
     if (members.length === 0) return { success: false, error: "Team not found", statusCode: 404 };
 
-    const isCaptain = members.some((m) => m.user_id === captainId && m.role === 'captain');
+    const isCaptain = members.some((m) => m.user_id === captainId && m.role === TeamRole.CAPTAIN);
     if (!isCaptain) {
       this.logger.warn("TeamService", `User ${captainId} attempted to get invitations for team ${teamId} without captain rights.`);
       return { success: false, error: "Only team captain can view team invitations", statusCode: 403 };
@@ -276,7 +278,7 @@ export class TeamService implements ITeamService {
     if (!invite) return { success: false, error: "Invitation not found", statusCode: 404 };
 
     const members = await this.teamReadRepo.findMembers(invite.team_id);
-    const isCaptain = members.some((m) => m.user_id === captainId && m.role === 'captain');
+    const isCaptain = members.some((m) => m.user_id === captainId && m.role === TeamRole.CAPTAIN);
     
     if (!isCaptain) {
       this.logger.warn("TeamService", `User ${captainId} attempted to cancel invitation ${inviteId} without captain rights.`);

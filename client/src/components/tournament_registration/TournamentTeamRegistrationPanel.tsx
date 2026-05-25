@@ -73,7 +73,7 @@ export function TournamentTeamRegistrationPanel({ tournament, onRegistered }: Pr
     return () => {
       active = false;
     };
-  }, [user?.id]);
+  }, [user?.id, tournament.game_id]);
 
   const selectedTeam = teams.find((team) => team.team_id === selectedTeamId) ?? null;
   const selectedPlayerIds = selectedTeam ? (selectedPlayerIdsByTeam[selectedTeam.team_id] ?? selectedTeam.members?.map((member) => member.user_id) ?? []) : [];

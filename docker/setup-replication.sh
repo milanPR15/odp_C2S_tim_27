@@ -14,7 +14,7 @@ ROOT_PASS="root1234"
 REPL_USER="replicator"
 REPL_PASS="repl1234"
 
-# TODO: Replace "project_db" with your actual database name DONE
+#Replace "project_db" with your actual database name DONE
 DB_NAME="pulse_grid"
 
 M="mysql  -h127.0.0.1    -P3306 -uroot -p${ROOT_PASS} --protocol=TCP --connect-timeout=5"
@@ -53,7 +53,7 @@ echo "[ 2/5 ] Creating schema on Master..."
 $M -e "DROP DATABASE IF EXISTS ${DB_NAME};"
 $M -e "CREATE DATABASE ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
-# TODO: Replace the SQL below with your actual table definitions DONE
+# Replace the SQL below with your actual table definitions DONE
 $M ${DB_NAME} << 'SQL'
 CREATE TABLE IF NOT EXISTS users (
   id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

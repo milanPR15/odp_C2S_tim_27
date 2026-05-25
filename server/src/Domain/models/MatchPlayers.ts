@@ -1,3 +1,5 @@
+import { RowDataPacket } from "mysql2/promise";
+
 export class MatchPlayer {
   constructor(
     public id: number = 0,
@@ -7,7 +9,7 @@ export class MatchPlayer {
     public performance_notes: string | null = null
   ) {}
 
-  static fromDB(row: any): MatchPlayer {
+  static fromDB(row: RowDataPacket): MatchPlayer {
     return new MatchPlayer(
       row.id,
       row.match_id,

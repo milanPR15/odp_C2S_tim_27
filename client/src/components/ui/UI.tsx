@@ -36,7 +36,7 @@ export function SuccessBox({ message }: { message: string }) {
   );
 }
 
-// TODO: Add StatusBadge variants for your domain entity statuses
+//Add StatusBadge variants for your domain entity statuses
 export function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     pending:   "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
