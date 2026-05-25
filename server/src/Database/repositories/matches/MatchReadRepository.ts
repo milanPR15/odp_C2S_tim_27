@@ -2,7 +2,7 @@ import { DbManager } from "../../connection/DbConnectionPool";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
 import { Match, MatchRow } from "../../../Domain/models/Match";
 import { MatchPlayer } from "../../../Domain/models/MatchPlayers";
-import { ResultSetHeader } from "mysql2";
+import { ResultSetHeader, RowDataPacket } from "mysql2";
 import { IMatchReadRepository } from "../../../Domain/repositories/matches/IMatchReadRepository";
 
 export class MatchReadRepository implements IMatchReadRepository{
@@ -48,7 +48,7 @@ export class MatchReadRepository implements IMatchReadRepository{
         "SELECT * FROM match_players WHERE match_id = ?",
         [matchId]
       );
-      return (rows as MatchPlayer[]).map((row) => MatchPlayer.fromDB(row));
+      return (rows as RowDataPacket[]).map((row) => MatchPlayer.fromDB(row));
     } finally {
       conn.release();
     }

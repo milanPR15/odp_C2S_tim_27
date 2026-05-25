@@ -18,7 +18,7 @@ export class GameReadRepository implements IGamesReadRepository{
       );
       return rows.length > 0 ? GamesMapper.fromRow(rows[0]) : null;
     } catch (err) {
-      this.logger.error("GameReadRepository", "getById failed", err);
+      this.logger.error("GameReadRepository", "getById failed", err instanceof Error ? err : String(err));
       return null;
     } finally {
       res.conn.release();
@@ -35,7 +35,7 @@ export class GameReadRepository implements IGamesReadRepository{
             );
             return rows.length > 0 ? GamesMapper.fromRow(rows[0]) : null;
         } catch (err) {
-            this.logger.error("GameReadRepository", "findByName failed", err);
+            this.logger.error("GameReadRepository", "findByName failed", err instanceof Error ? err : String(err));
             return null;
         }
         finally { res.conn.release(); }
@@ -48,7 +48,7 @@ export class GameReadRepository implements IGamesReadRepository{
             const [rows] = await res.conn.execute<RowDataPacket[]>(`SELECT * FROM games`);
             return rows.map((r: RowDataPacket) => GamesMapper.fromRow(r));
         } catch (err) {
-            this.logger.error("GameReadRepository", "findAll failed", err);
+            this.logger.error("GameReadRepository", "findAll failed", err instanceof Error ? err : String(err));
             return [];
         }
         finally { res.conn.release(); }

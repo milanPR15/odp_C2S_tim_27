@@ -22,7 +22,7 @@ export class TeamReadRepository implements ITeamReadRepository {
       const row = rows[0];
       return row ? Team.fromDB(row) : null;
     } catch (err) {
-      this.logger.error("TeamRepository", "findById failed", err);
+      this.logger.error("TeamRepository", "findById failed", err instanceof Error ? err : String(err));
       return null;
     } finally {
       conn.release();
@@ -43,7 +43,7 @@ export class TeamReadRepository implements ITeamReadRepository {
 
       return rows.map((row) => Team.fromDB(row));
     } catch (err) {
-      this.logger.error("TeamRepository", "findByUserId failed", err);
+      this.logger.error("TeamRepository", "findByUserId failed", err instanceof Error ? err : String(err));
       return [];
     } finally {
       conn.release();
@@ -63,7 +63,7 @@ export class TeamReadRepository implements ITeamReadRepository {
 
       return rows.map((row) => TeamMember.fromDB(row));
     } catch (err) {
-      this.logger.error("TeamRepository", "findMembers failed", err);
+      this.logger.error("TeamRepository", "findMembers failed", err instanceof Error ? err : String(err));
       return [];
     } finally {
       conn.release();
@@ -82,7 +82,7 @@ export class TeamReadRepository implements ITeamReadRepository {
       );
       return rows.length > 0;
     } catch (err) {
-      this.logger.error("TeamRepository", "isUserInTeam failed", err);
+      this.logger.error("TeamRepository", "isUserInTeam failed", err instanceof Error ? err : String(err));
       return false;
     } finally {
       conn.release();

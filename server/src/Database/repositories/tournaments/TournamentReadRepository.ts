@@ -21,7 +21,7 @@ export class TournamentReadRepository implements ITournamentReadRepository {
             );
             return rows.length > 0 ? TournamentMapper.fromRow(rows[0]) : null;
         } catch (err) {
-            this.logger.error('Trounament repository', "findById failed", err);
+            this.logger.error('Tournament repository', "findById failed", err instanceof Error ? err : String(err));
             return null;
         }
         finally { res.conn.release(); }
@@ -37,7 +37,7 @@ export class TournamentReadRepository implements ITournamentReadRepository {
             );
             return rows.map(r => TournamentMapper.fromRow(r));
         } catch (err) {
-            this.logger.error('Tournament repository', "findByGameId failed", err);
+            this.logger.error('Tournament repository', "findByGameId failed", err instanceof Error ? err : String(err));
             return [];
         }
         finally { res.conn.release(); }
@@ -53,7 +53,7 @@ export class TournamentReadRepository implements ITournamentReadRepository {
             );
             return rows.length > 0 ? TournamentMapper.fromRow(rows[0]) : new Tournament();
         } catch (err) {
-            this.logger.error('Trounament repository', "findByName failed", err);
+            this.logger.error('Tournament repository', "findByName failed", err instanceof Error ? err : String(err));
             return new Tournament();
         }
         finally { res.conn.release(); }
@@ -68,7 +68,7 @@ export class TournamentReadRepository implements ITournamentReadRepository {
             );
             return rows.map(r => TournamentMapper.fromRow(r));
         } catch (err) {
-            this.logger.error('Trounament repository', "findAll failed", err);
+            this.logger.error('Tournament repository', "findAll failed", err instanceof Error ? err : String(err));
             return [];
         }
         finally { res.conn.release(); }

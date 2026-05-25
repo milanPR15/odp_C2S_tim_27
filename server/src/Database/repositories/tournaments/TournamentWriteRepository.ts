@@ -21,7 +21,7 @@ export class TournamentWriteRepository implements ITournamentWriteRepository{
             if (result.insertId === 0) return new Tournament();
             return new Tournament(result.insertId, tournament.name, tournament.game_id, tournament.format, tournament.max_teams, tournament.entry_deadline, tournament.prize_pool, tournament.status);
         } catch (err) {
-            this.logger.error('Trounament repository', "create failed", err);
+            this.logger.error('Tournament repository', "create failed", err instanceof Error ? err : String(err));
             return new Tournament();
         }
         finally { res.conn.release(); }
@@ -39,7 +39,7 @@ export class TournamentWriteRepository implements ITournamentWriteRepository{
             );
             return result.affectedRows > 0;
         } catch (err) {
-            this.logger.error('Trounament repository', "update failed", err);
+            this.logger.error('Tournament repository', "update failed", err instanceof Error ? err : String(err));
             return false;
         }
         finally { res.conn.release(); }
@@ -56,7 +56,7 @@ export class TournamentWriteRepository implements ITournamentWriteRepository{
             );
             return result.affectedRows > 0;
         } catch (err) {
-            this.logger.error('Trounament repository', "delete failed", err);
+            this.logger.error('Tournament repository', "delete failed", err instanceof Error ? err : String(err));
             return false;
         }
         finally { res.conn.release(); }

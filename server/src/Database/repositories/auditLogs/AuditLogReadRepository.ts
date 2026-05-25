@@ -17,7 +17,7 @@ export class AuditLogReadRepository implements IAuditLogReadRepository{
       );
       return rows.map(AuditLogMapper.fromRow);
     } catch (err) {
-      this.logger.error("AuditLogReadRepository", "getAll failed", err);
+      this.logger.error("AuditLogReadRepository", "getAll failed", err instanceof Error ? err : String(err));
       return [];
     } finally {
       res.conn.release();

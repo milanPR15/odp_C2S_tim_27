@@ -18,7 +18,7 @@ export class GameWriteRepository implements IGamesWriteRepository{
       if (result.insertId === 0) return null;
       return new Game(result.insertId, game.title, game.genre, game.max_players, game.logo);
     } catch (err) {
-      this.logger.error("GameWriteRepository", "create failed", err);
+      this.logger.error("GameWriteRepository", "create failed", err instanceof Error ? err : String(err));
       return null;
     } finally {
       res.conn.release();
@@ -35,7 +35,7 @@ export class GameWriteRepository implements IGamesWriteRepository{
             );
             return result.affectedRows > 0;
         } catch (err) {
-            this.logger.error("GamesWriteRepository", "update failed", err);
+            this.logger.error("GamesWriteRepository", "update failed", err instanceof Error ? err : String(err));
             return false;
         }
         finally { res.conn.release(); }
@@ -49,7 +49,7 @@ export class GameWriteRepository implements IGamesWriteRepository{
             const [result] = await res.conn.execute<ResultSetHeader>(`DELETE FROM games WHERE game_id = ?`, [id]);
             return result.affectedRows > 0;
         } catch (err) {
-            this.logger.error("GamesEriteRepository", "delete failed", err);
+            this.logger.error("GamesWriteRepository", "delete failed", err instanceof Error ? err : String(err));
             return false;
         }
         finally { res.conn.release(); }

@@ -35,7 +35,7 @@ export class AuditReadRepository implements IAuditReadRepository{
       );
     }
     catch (err) {
-      this.logger.error("AuditReadRepository", "findAll failed", err);
+      this.logger.error("AuditReadRepository", "findAll failed", err instanceof Error ? err : String(err));
       return new PaginatedListDto([], 0, page, limit);  
     } finally {
       res.conn.release();

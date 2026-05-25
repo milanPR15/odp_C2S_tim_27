@@ -23,7 +23,7 @@ export class TeamInvitationReadRepository implements ITeamInvitationReadReposito
       );
       return rows.length > 0 ? TeamInvitationMapper.fromRow(rows[0]) : null;
     } catch (err) {
-      this.logger.error("TeamInvitationRepository", "findById failed", err);
+      this.logger.error("TeamInvitationRepository", "findById failed", err instanceof Error ? err : String(err));
       return null;
     } finally {
       res.conn.release();
@@ -43,7 +43,7 @@ export class TeamInvitationReadRepository implements ITeamInvitationReadReposito
 
       return rows.length > 0 ? TeamInvitationMapper.fromRow(rows[0]) : null;
     } catch (err) {
-      this.logger.error("TeamInvitationRepository", "findByTeamAndUser failed", err);
+      this.logger.error("TeamInvitationRepository", "findByTeamAndUser failed", err instanceof Error ? err : String(err));
       return null;
     } finally {
       res.conn.release();
@@ -62,7 +62,7 @@ export class TeamInvitationReadRepository implements ITeamInvitationReadReposito
       );
      return rows.map(row => TeamInvitationMapper.fromRow(row));
     } catch (err) {
-      this.logger.error("TeamInvitationRepository", "findByUserId failed", err);
+      this.logger.error("TeamInvitationRepository", "findByUserId failed", err instanceof Error ? err : String(err));
       return [];
     } finally {
       res.conn.release();
@@ -81,7 +81,7 @@ export class TeamInvitationReadRepository implements ITeamInvitationReadReposito
       );
         return rows.map(row => TeamInvitationMapper.fromRow(row));    
       } catch (err) {
-      this.logger.error("TeamInvitationRepository", "findByTeamId failed", err);
+      this.logger.error("TeamInvitationRepository", "findByTeamId failed", err instanceof Error ? err : String(err));
       return [];
     } finally {
       res.conn.release();

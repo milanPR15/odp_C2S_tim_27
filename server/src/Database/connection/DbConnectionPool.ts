@@ -97,7 +97,7 @@ return { conn, nodeName: this.master.name };
     } catch (err) {
 this.master.node.status = NodeStatus.UNREACHABLE;
 this.master.node.failedWrites++;
-this.logger.error("DB", "Failed to connect to master", err);
+this.logger.error("DB", "Failed to connect to master", err instanceof Error ? err : String(err));
 return null;
     }
   }
@@ -131,7 +131,7 @@ this.master.node.successfulWrites++;
 return { conn, nodeName: this.master.name };
     } catch (err) {
 this.master.node.status = NodeStatus.UNREACHABLE;
-this.logger.error("DB", "Failed to connect to master for fallback read", err);
+this.logger.error("DB", "Failed to connect to master for fallback read", err instanceof Error ? err : String(err));
 return null;
     }
   }

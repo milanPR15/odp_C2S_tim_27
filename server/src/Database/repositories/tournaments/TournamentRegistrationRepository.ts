@@ -64,8 +64,8 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
       );
 
       return rows[0] ? this.fromRow(rows[0]) : null;
-    } catch (err) {
-      this.logger.error("TournamentRegistrationRepository", "findById failed", err);
+    } catch (error) {
+      this.logger.error("TournamentRegistrationRepository", "findById failed", error instanceof Error ? error : String(error));
       return null;
     } finally {
       conn.release();
@@ -84,8 +84,8 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
       );
 
       return rows[0] ? this.fromRow(rows[0]) : null;
-    } catch (err) {
-      this.logger.error("TournamentRegistrationRepository", "findByTournamentAndTeam failed", err);
+    } catch (error) {
+      this.logger.error("TournamentRegistrationRepository", "findByTournamentAndTeam failed", error instanceof Error ? error : String(error));
       return null;
     } finally {
       conn.release();
@@ -108,8 +108,8 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
       );
 
       return rows.map((row) => this.fromDtoRow(row));
-    } catch (err) {
-      this.logger.error("TournamentRegistrationRepository", "findByTournament failed", err);
+    } catch (error) {
+      this.logger.error("TournamentRegistrationRepository", "findByTournament failed", error instanceof Error ? error : String(error));
       return [];
     } finally {
       conn.release();
@@ -128,8 +128,8 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
       );
 
       return Number(rows[0]?.count ?? 0);
-    } catch (err) {
-      this.logger.error("TournamentRegistrationRepository", "countByTournament failed", err);
+    } catch (error) {
+      this.logger.error("TournamentRegistrationRepository", "countByTournament failed", error instanceof Error ? error : String(error));
       return 0;
     } finally {
       conn.release();
@@ -148,8 +148,8 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
       );
 
       return Number(rows[0]?.count ?? 0);
-    } catch (err) {
-      this.logger.error("TournamentRegistrationRepository", "countConfirmedByTournament failed", err);
+    } catch (error) {
+      this.logger.error("TournamentRegistrationRepository", "countConfirmedByTournament failed", error instanceof Error ? error : String(error));
       return 0;
     } finally {
       conn.release();
@@ -182,8 +182,8 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
       );
 
       return rows[0] ? this.fromRow(rows[0]) : null;
-    } catch (err) {
-      this.logger.error("TournamentRegistrationRepository", "create failed", err);
+    } catch (error) {
+      this.logger.error("TournamentRegistrationRepository", "create failed", error instanceof Error ? error : String(error));
       return null;
     } finally {
       conn.release();
@@ -202,8 +202,8 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
       );
 
       return result.affectedRows > 0;
-    } catch (err) {
-      this.logger.error("TournamentRegistrationRepository", "updateStatus failed", err);
+    } catch (error) {
+      this.logger.error("TournamentRegistrationRepository", "updateStatus failed", error instanceof Error ? error : String(error));
       return false;
     } finally {
       conn.release();

@@ -31,7 +31,7 @@ export class TeamInvitationWriteRepository implements ITeamInvitationWriteReposi
       const row = rows[0];
       return rows.length > 0 ? TeamInvitationMapper.fromRow(rows[0]) : new TeamInvitation();
     } catch (err) {
-      this.logger.error("TeamInvitationRepository", "create failed", err);
+      this.logger.error("TeamInvitationRepository", "create failed", err instanceof Error ? err : String(err));
       return new TeamInvitation();
     } finally {
       res.conn.release();
@@ -51,7 +51,7 @@ export class TeamInvitationWriteRepository implements ITeamInvitationWriteReposi
 
       return result.affectedRows > 0;
     } catch (err) {
-      this.logger.error("TeamInvitationRepository", "updateStatus failed", err);
+      this.logger.error("TeamInvitationRepository", "updateStatus failed", err instanceof Error ? err : String(err));
       return false;
     } finally {
       res.conn.release();
@@ -70,7 +70,7 @@ export class TeamInvitationWriteRepository implements ITeamInvitationWriteReposi
       );
       return result.affectedRows > 0;
     } catch (err) {
-      this.logger.error("TeamInvitationRepository", "deleteById failed", err);
+      this.logger.error("TeamInvitationRepository", "deleteById failed", err instanceof Error ? err : String(err));
       return false;
     } finally {
       res.conn.release();
