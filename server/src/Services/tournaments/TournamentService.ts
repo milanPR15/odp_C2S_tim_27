@@ -17,6 +17,8 @@ import { Result } from "../../Domain/types/Result";
 import { IMatchService } from "../../Domain/services/matches/IMatchService";
 import { TournamentRegistrationDto } from "../../Domain/DTOs/tournaments/TournamentRegistrationDto";
 
+type EntryDeadlineInput = string | number | Date;
+
 export class TournamentService implements ITournamentService {
     public constructor(
         private readonly tournamentReadRepository: ITournamentReadRepository,
@@ -28,7 +30,7 @@ export class TournamentService implements ITournamentService {
         private readonly matchService: IMatchService
     ) {}
 
-    private parseEntryDeadline(rawValue: unknown): Date | undefined {
+    private parseEntryDeadline(rawValue: EntryDeadlineInput): Date | undefined {
         if (rawValue instanceof Date) {
             return Number.isNaN(rawValue.getTime()) ? undefined : rawValue;
         }
@@ -183,7 +185,7 @@ export class TournamentService implements ITournamentService {
             tournament.game_id ?? existing.game_id,
             tournament.format ?? existing.format,
             tournament.max_teams ?? existing.max_teams,
-            this.parseEntryDeadline(tournament.entry_deadline) || existing.entry_deadline,
+            this.parseEntryDeadline(tournament.entry_deadline!) || existing.entry_deadline,
             tournament.prize_pool ?? existing.prize_pool,
             tournament.status ?? existing.status
         ));
