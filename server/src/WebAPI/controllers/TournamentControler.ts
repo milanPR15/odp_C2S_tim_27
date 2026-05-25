@@ -10,12 +10,12 @@ export class TournamentController {
 
     public constructor(private readonly tournamentService: ITournamentService)
     {
-        this.router.get("/tournaments", authenticate, this.getAll.bind(this));
-        this.router.get("/tournaments/game/:gameId", authenticate, this.getByGameId.bind(this));
-        this.router.get("/tournaments/:id/registrations/count", authenticate, this.getRegistrationCount.bind(this));
+        this.router.get("/tournaments", this.getAll.bind(this));
+        this.router.get("/tournaments/game/:gameId", this.getByGameId.bind(this));
+        this.router.get("/tournaments/:id/registrations/count", this.getRegistrationCount.bind(this));
         this.router.get("/tournaments/:id/registrations", authenticate, authorize(UserRole.ADMIN), this.getRegistrations.bind(this));
         this.router.patch("/tournaments/:id/registrations/:registrationId/confirm", authenticate, authorize(UserRole.ADMIN), this.confirmRegistration.bind(this));
-        this.router.get("/tournaments/:id", authenticate, this.getById.bind(this));
+        this.router.get("/tournaments/:id", this.getById.bind(this));
         this.router.post("/tournaments", authenticate, authorize(UserRole.ADMIN), this.create.bind(this));
         this.router.put("/tournaments/:id", authenticate, authorize(UserRole.ADMIN), this.update.bind(this));
         this.router.delete("/tournaments/:id", authenticate, authorize(UserRole.ADMIN), this.delete.bind(this));
