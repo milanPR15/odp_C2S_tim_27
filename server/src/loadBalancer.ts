@@ -21,6 +21,12 @@ interface RequestMeta {
   headers: IncomingHttpHeaders;
 }
 
+type JsonValue = string | number | boolean | JsonObject | JsonArray;
+interface JsonObject {
+  [key: string]: JsonValue;
+}
+interface JsonArray extends Array<JsonValue> {}
+
 const DEFAULT_TARGETS = [
   "http://localhost:3001",
   "http://localhost:3002",
@@ -283,7 +289,7 @@ function writeError(response: ServerResponse, status: number, message: string): 
   response.end(JSON.stringify({ error: message }));
 }
 
-function writeJson(response: ServerResponse, status: number, payload: unknown): void {
+function writeJson(response: ServerResponse, status: number, payload: JsonValue): void {
   response.writeHead(status, {
     "content-type": "application/json",
     "access-control-allow-origin": "*",
