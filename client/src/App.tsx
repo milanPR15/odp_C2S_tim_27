@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { Layout } from "./components/layout/Layout";
 import { ProtectedRoute } from "./components/protected_route/ProtectedRoute";
 
+import LandingPage from "./pages/landing/LandingPage";
 import LoginPage    from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import NotFoundPage from "./pages/not_found/NotFoundPage";
@@ -27,13 +29,13 @@ export default function App() {
 
       {/* User routes */}
       <Route path="/dashboard" element={<ProtectedRoute requiredRole="player"><UserDashboard /></ProtectedRoute>} />
-      <Route path="/games" element={<ProtectedRoute><GamesCatalogPage /></ProtectedRoute>} />
-      <Route path="/games/:id" element={<ProtectedRoute><GameDetailPage /></ProtectedRoute>} />
-      <Route path="/tournaments" element={<ProtectedRoute><TournamentsCatalogPage /></ProtectedRoute>} />
-      <Route path="/tournaments/:id" element={<ProtectedRoute><TournamentDetailsPage /></ProtectedRoute>} />
+      <Route path="/games" element={<Layout><GamesCatalogPage /></Layout>} />
+      <Route path="/games/:id" element={<Layout><GameDetailPage /></Layout>} />
+      <Route path="/tournaments" element={<Layout><TournamentsCatalogPage /></Layout>} />
+      <Route path="/tournaments/:id" element={<Layout><TournamentDetailsPage /></Layout>} />
       <Route path="/teams" element={<ProtectedRoute><TeamsCatalogPage /></ProtectedRoute>} />
       <Route path="/teams/create" element={<ProtectedRoute><CreateTeamPage /></ProtectedRoute>} />
-      <Route path="/teams/:id" element={<ProtectedRoute><TeamDetailsPage /></ProtectedRoute>} />
+      <Route path="/teams/:id" element={<Layout><TeamDetailsPage /></Layout>} />
 
       {/* Admin routes */}
       <Route path="/admin"       element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
@@ -42,7 +44,7 @@ export default function App() {
       <Route path="/admin/tournaments/create" element={<ProtectedRoute requiredRole="admin"><CreateTournamentPage /></ProtectedRoute>} />
       <Route path="/admin/games/create" element={<ProtectedRoute requiredRole="admin"><CreateGamePage /></ProtectedRoute>} />
 
-      <Route path="/"    element={<Navigate to="/login" replace />} />
+      <Route path="/"    element={<LandingPage />} />
       <Route path="/404" element={<NotFoundPage />} />
       <Route path="*"    element={<Navigate to="/404" replace />} />
     </Routes>

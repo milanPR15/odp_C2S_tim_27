@@ -430,6 +430,7 @@ export default function TournamentDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const canRegisterTeam = !!user;
 
   const EMPTY_TOURNAMENT: TournamentDto = {
     tournament_id: 0,
@@ -686,11 +687,17 @@ export default function TournamentDetailsPage() {
         </div>
       </section>
 
-      {registrationCount < tournament.max_teams ? (
-        <TournamentTeamRegistrationPanel tournament={tournament} />
+      {canRegisterTeam ? (
+        registrationCount < tournament.max_teams ? (
+          <TournamentTeamRegistrationPanel tournament={tournament} />
+        ) : (
+          <div className="mb-8 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+            This tournament is full. Team registration is closed.
+          </div>
+        )
       ) : (
-        <div className="mb-8 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-          This tournament is full. Team registration is closed.
+        <div className="mb-8 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
+          Log in to register one of your teams for this tournament.
         </div>
       )}
 

@@ -9,8 +9,8 @@ export class GameController {
 
     public constructor(private readonly gameService: IGamesService)
     {
-        this.router.get("/games", authenticate, this.getAll.bind(this));
-        this.router.get("/games/:id", authenticate, this.getById.bind(this));
+        this.router.get("/games", this.getAll.bind(this));
+        this.router.get("/games/:id", this.getById.bind(this));
         this.router.post("/games", authenticate, authorize(UserRole.ADMIN), this.create.bind(this));
         this.router.put("/games/:id", authenticate, authorize(UserRole.ADMIN), this.update.bind(this));
         this.router.delete("/games/:id", authenticate, authorize(UserRole.ADMIN), this.delete.bind(this));

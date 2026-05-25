@@ -261,7 +261,7 @@ export default function TeamDetailsPage() {
     return (
       <div>
         <div className="mb-8">
-          <BackButton fallbackTo="/teams" />
+          <BackButton fallbackTo="/" />
         </div>
         <ErrorBox message={error || "Team not found."} />
       </div>
@@ -271,7 +271,7 @@ export default function TeamDetailsPage() {
   return (
     <div>
       <div className="mb-8">
-        <BackButton fallbackTo="/teams" />
+        <BackButton fallbackTo="/" />
       </div>
 
       <div className="flex flex-col justify-between md:flex-row md:items-start gap-6 mb-8">
