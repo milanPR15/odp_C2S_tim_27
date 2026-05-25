@@ -2,10 +2,11 @@ import { PageHeader, NodeBadge, Spinner, ErrorBox, StatCard } from "../../compon
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { healthApi } from "../../api_services/health/HealthAPIService";
-import type { HealthNode } from "../../api_services/health/IHealthAPIService";
+import type { BackendTargetHealth, HealthNode } from "../../api_services/health/IHealthAPIService";
 
 export default function AdminDashboard() {
-  const [nodes, setNodes] = useState<HealthNode[]>([] as HealthNode[]);
+  const [dbNodes, setDbNodes] = useState<HealthNode[]>([] as HealthNode[]);
+  const [backendNodes, setBackendNodes] = useState<BackendTargetHealth[]>([] as BackendTargetHealth[]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
 
@@ -13,16 +14,28 @@ export default function AdminDashboard() {
     setLoading(true);
     setError("");
     try {
-      const res = await healthApi.getDbHealth();
-      if (!res.success) {
-        setError(res.message || "Failed to load DB health");
-        setNodes([] as HealthNode[]);
+      const [dbRes, backendRes] = await Promise.all([
+        healthApi.getDbHealth(),
+        healthApi.getBackendHealth(),
+      ]);
+
+      if (!dbRes.success) {
+        setError(dbRes.message || "Failed to load DB health");
+        setDbNodes([] as HealthNode[]);
       } else {
-        setNodes(res.data ?? [] as HealthNode[]);
+        setDbNodes(dbRes.data ?? [] as HealthNode[]);
+      }
+
+      if (!backendRes.success) {
+        setError((current) => current || backendRes.message || "Failed to load backend health");
+        setBackendNodes([] as BackendTargetHealth[]);
+      } else {
+        setBackendNodes(backendRes.data?.targets ?? [] as BackendTargetHealth[]);
       }
     } catch {
-      setError("Failed to load DB health");
-      setNodes([] as HealthNode[]);
+      setError("Failed to load dashboard health");
+      setDbNodes([] as HealthNode[]);
+      setBackendNodes([] as BackendTargetHealth[]);
     } finally {
       setLoading(false);
     }
@@ -34,24 +47,27 @@ export default function AdminDashboard() {
     return () => clearInterval(id);
   }, []);
 
+  const healthyBackendNodes = backendNodes.filter((node) => node.healthy).length;
+  const backendModeLabel = backendNodes.length > 1 ? `${backendNodes.length} targets` : "single backend";
+
   return (
     <div>
       <PageHeader eyebrow="Admin" title="Dashboard" />
 
-      <p className="text-white/30 text-sm mb-6">Cluster DB node health (auto-refreshes every 10s)</p>
+      <p className="text-white/30 text-sm mb-6">Cluster DB node health and backend target availability, auto-refreshing every 10s.</p>
 
       <div className="mb-6">
         {loading && (
           <div className="p-6 bg-white/3 border border-white/6 rounded-2xl flex items-center gap-3">
             <Spinner />
-            <div className="text-white/60">Loading cluster health...</div>
+            <div className="text-white/60">Loading dashboard health...</div>
           </div>
         )}
         {error && <ErrorBox message={error} />}
 
-        {!loading && !error && nodes && (
+        {!loading && dbNodes && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {nodes.map((n) => (
+            {dbNodes.map((n) => (
               <div key={n.name} className="bg-white/3 border border-white/6 rounded-2xl p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -74,6 +90,42 @@ export default function AdminDashboard() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {!loading && backendNodes && (
+          <div className="mt-8">
+            <div className="flex items-end justify-between gap-3 mb-4">
+              <div>
+                <p className="text-xs text-white/30 uppercase tracking-widest font-mono">Backend nodes</p>
+                <h2 className="text-lg font-semibold text-white mt-1">{backendModeLabel}</h2>
+                <p className="text-sm text-white/40 mt-1">Healthy targets: {healthyBackendNodes} / {backendNodes.length || 1}</p>
+              </div>
+              <div className="text-xs text-white/30 font-mono">Source: load balancer status</div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {backendNodes.map((node) => (
+                <div key={node.id} className="bg-white/3 border border-white/6 rounded-2xl p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs text-white/30 uppercase tracking-widest font-mono">{node.id}</p>
+                      <h3 className="text-lg font-semibold text-white mt-1">{node.url}</h3>
+                      <p className="text-sm text-white/40 mt-2">Last probe: {node.lastProbeAt ? new Date(node.lastProbeAt).toLocaleString() : "-"}</p>
+                    </div>
+                    <NodeBadge status={node.healthy ? "healthy" : "offline"} />
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <StatCard label="Connections" value={String(node.activeConnections)} />
+                    <StatCard label="Weight" value={String(node.weight)} />
+                  </div>
+                  {node.lastProbeError && (
+                    <p className="mt-4 text-xs text-red-300/80 border border-red-500/15 bg-red-500/5 rounded-xl px-3 py-2">
+                      {node.lastProbeError}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

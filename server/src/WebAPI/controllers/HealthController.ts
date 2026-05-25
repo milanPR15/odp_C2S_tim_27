@@ -8,12 +8,23 @@ export class HealthController {
   private readonly router = Router();
 
   constructor(private readonly db: DbManager) {
+    this.router.get("/health/check", this.getApiHealth.bind(this));
     this.router.get(
       "/health/db",
       authenticate,
       authorize(UserRole.ADMIN),
       this.getDbHealth.bind(this)
     );
+  }
+
+  private async getApiHealth(req: Request, res: Response): Promise<void> {
+    res.status(200).json({
+      success: true,
+      data: {
+        status: "healthy",
+        timestamp: new Date().toISOString(),
+      },
+    });
   }
 
   private async getDbHealth(req: Request, res: Response): Promise<void> {
