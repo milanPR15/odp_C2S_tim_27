@@ -1,10 +1,10 @@
 import { DbManager } from "../../connection/DbConnectionPool";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
-import { ITournamentRegistrationRepository } from "../../../Domain/repositories/tournaments/ITournamentRegistrationRepository";
+import { ITournamentRegistrationReadRepository } from "../../../Domain/repositories/tournaments/ITournamentRegistrationReadRepository";
 import { TournamentRegistration } from "../../../Domain/models/TournamentRegistration";
 import { TournamentRegistrationDto } from "../../../Domain/DTOs/tournaments/TournamentRegistrationDto";
 import { RegistrationStatus } from "../../../Domain/enums/RegistrationStatus";
-import { RowDataPacket, ResultSetHeader } from "mysql2/promise";
+import { RowDataPacket } from "mysql2/promise";
 
 type TournamentRegistrationRow = RowDataPacket & {
   id: number;
@@ -17,7 +17,7 @@ type TournamentRegistrationRow = RowDataPacket & {
   registered_at: Date | string;
 };
 
-export class TournamentRegistrationRepository implements ITournamentRegistrationRepository {
+export class TournamentRegistrationReadRepository implements ITournamentRegistrationReadRepository {
   constructor(
     private readonly db: DbManager,
     private readonly logger: ILoggerService
@@ -75,7 +75,7 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
 
       return rows[0] ? this.fromRow(rows[0]) : new TournamentRegistration();
     } catch (error) {
-      this.logger.error("TournamentRegistrationRepository", "findById failed", error instanceof Error ? error : String(error));
+      this.logger.error("TournamentRegistrationReadRepository", "findById failed", error instanceof Error ? error : String(error));
       return new TournamentRegistration();
     } finally {
       conn.release();
@@ -105,7 +105,7 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
 
       return rows[0] ? this.fromRow(rows[0]) : new TournamentRegistration();
     } catch (error) {
-      this.logger.error("TournamentRegistrationRepository", "findByTournamentAndTeam failed", error instanceof Error ? error : String(error));
+      this.logger.error("TournamentRegistrationReadRepository", "findByTournamentAndTeam failed", error instanceof Error ? error : String(error));
       return new TournamentRegistration();
     } finally {
       conn.release();
@@ -123,12 +123,6 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
            tr.id,
            tr.tournament_id,
            tr.team_id,
-           COALESCE((
-             SELECT t.team_name
-             FROM team t
-             WHERE t.team_id = tr.team_id
-             LIMIT 1
-           ), '') AS team_name,
            COALESCE(tr.selected_player_ids, '') AS selected_player_ids,
            tr.status,
            COALESCE(tr.seed, 0) AS seed,
@@ -141,7 +135,7 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
 
       return rows.map((row) => this.fromDtoRow(row));
     } catch (error) {
-      this.logger.error("TournamentRegistrationRepository", "findByTournament failed", error instanceof Error ? error : String(error));
+      this.logger.error("TournamentRegistrationReadRepository", "findByTournament failed", error instanceof Error ? error : String(error));
       return [];
     } finally {
       conn.release();
@@ -161,7 +155,7 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
 
       return Number(rows[0]?.count ?? 0);
     } catch (error) {
-      this.logger.error("TournamentRegistrationRepository", "countByTournament failed", error instanceof Error ? error : String(error));
+      this.logger.error("TournamentRegistrationReadRepository", "countByTournament failed", error instanceof Error ? error : String(error));
       return 0;
     } finally {
       conn.release();
@@ -181,72 +175,8 @@ export class TournamentRegistrationRepository implements ITournamentRegistration
 
       return Number(rows[0]?.count ?? 0);
     } catch (error) {
-      this.logger.error("TournamentRegistrationRepository", "countConfirmedByTournament failed", error instanceof Error ? error : String(error));
+      this.logger.error("TournamentRegistrationReadRepository", "countConfirmedByTournament failed", error instanceof Error ? error : String(error));
       return 0;
-    } finally {
-      conn.release();
-    }
-  }
-
-  async create(registration: TournamentRegistration): Promise<TournamentRegistration> {
-    const connResult = await this.db.getWriteConnection();
-    if (!connResult) return new TournamentRegistration();
-    const { conn } = connResult;
-
-    try {
-      const [result] = await conn.execute<ResultSetHeader>(
-        `INSERT INTO tournament_registrations (tournament_id, team_id, selected_player_ids, status, seed)
-         VALUES (?, ?, ?, ?, ?)` ,
-        [
-          registration.tournament_id,
-          registration.team_id,
-          JSON.stringify(registration.selected_player_ids ?? []),
-          registration.status,
-          registration.seed ?? 0,
-        ]
-      );
-
-      if (result.insertId === 0) return new TournamentRegistration();
-
-      const [rows] = await conn.execute<TournamentRegistrationRow[]>(
-        `SELECT
-           id,
-           tournament_id,
-           team_id,
-           COALESCE(selected_player_ids, '') AS selected_player_ids,
-           status,
-           COALESCE(seed, 0) AS seed,
-           registered_at
-         FROM tournament_registrations
-         WHERE id = ?
-         LIMIT 1`,
-        [result.insertId]
-      );
-
-      return rows[0] ? this.fromRow(rows[0]) : new TournamentRegistration();
-    } catch (error) {
-      this.logger.error("TournamentRegistrationRepository", "create failed", error instanceof Error ? error : String(error));
-      return new TournamentRegistration();
-    } finally {
-      conn.release();
-    }
-  }
-
-  async updateStatus(id: number, status: RegistrationStatus): Promise<boolean> {
-    const connResult = await this.db.getWriteConnection();
-    if (!connResult) return false;
-    const { conn } = connResult;
-
-    try {
-      const [result] = await conn.execute<ResultSetHeader>(
-        `UPDATE tournament_registrations SET status = ? WHERE id = ?`,
-        [status, id]
-      );
-
-      return result.affectedRows > 0;
-    } catch (error) {
-      this.logger.error("TournamentRegistrationRepository", "updateStatus failed", error instanceof Error ? error : String(error));
-      return false;
     } finally {
       conn.release();
     }

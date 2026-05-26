@@ -93,77 +93,35 @@ export class TeamReadRepository implements ITeamReadRepository {
     }
   }
 
-  async getConfirmedTournamentTeams(tournamentId: number): Promise<Team[]> {
+  async findByIds(teamIds: number[]): Promise<Team[]> {
+    if (!teamIds || teamIds.length === 0) return [];
     const res = await this.db.getReadConnection();
     if (!res) return [];
-
     try {
-      const [rows] = await res.conn.execute<RowDataPacket[]>(
-        `
-        SELECT t.*
-        FROM team t
-        WHERE t.team_id IN (
-          SELECT tr.team_id
-          FROM tournament_registrations tr
-          WHERE tr.tournament_id = ?
-            AND tr.status = 'confirmed'
-        )
-        ORDER BY COALESCE((
-          SELECT tr.seed
-          FROM tournament_registrations tr
-          WHERE tr.tournament_id = ?
-            AND tr.team_id = t.team_id
-            AND tr.status = 'confirmed'
-          ORDER BY tr.seed IS NULL, tr.seed ASC, tr.registered_at ASC, tr.id ASC
-          LIMIT 1
-        ), 2147483647) ASC,
-        COALESCE((
-          SELECT tr.registered_at
-          FROM tournament_registrations tr
-          WHERE tr.tournament_id = ?
-            AND tr.team_id = t.team_id
-            AND tr.status = 'confirmed'
-          ORDER BY tr.seed IS NULL, tr.seed ASC, tr.registered_at ASC, tr.id ASC
-          LIMIT 1
-        ), CURRENT_TIMESTAMP) ASC,
-        COALESCE((
-          SELECT tr.id
-          FROM tournament_registrations tr
-          WHERE tr.tournament_id = ?
-            AND tr.team_id = t.team_id
-            AND tr.status = 'confirmed'
-          ORDER BY tr.seed IS NULL, tr.seed ASC, tr.registered_at ASC, tr.id ASC
-          LIMIT 1
-        ), 2147483647) ASC
-        `,
-        [tournamentId, tournamentId, tournamentId, tournamentId]
-      );
+      const placeholders = teamIds.map(() => '?').join(',');
+      const [rows] = await res.conn.execute<RowDataPacket[]>(`SELECT * FROM team WHERE team_id IN (${placeholders})`, teamIds);
       return rows.map(r => TeamMapper.fromRow(r));
     } finally {
       res.conn.release();
     }
   }
 
-  async getRegisteredTournamentTeams(tournamentId: number): Promise<Team[]> {
-    const res = await this.db.getReadConnection();
-    if (!res) return [];
+  async isUserCaptain(teamId: number, userId: number): Promise<boolean> {
+    const connResult = await this.db.getReadConnection();
+    if (!connResult) return false;
+    const { conn } = connResult;
 
     try {
-      const [rows] = await res.conn.execute<RowDataPacket[]>(
-        `
-        SELECT DISTINCT t.*
-        FROM team t
-        WHERE t.team_id IN (
-          SELECT tr.team_id
-          FROM tournament_registrations tr
-          WHERE tr.tournament_id = ?
-        )
-        `,
-        [tournamentId]
+      const [rows] = await conn.execute<RowDataPacket[]>(
+        `SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ? AND role = 'captain' LIMIT 1`,
+        [teamId, userId]
       );
-      return rows.map(r => TeamMapper.fromRow(r));
+      return rows.length > 0;
+    } catch (err) {
+      this.logger.error("TeamRepository", "isUserCaptain failed", err instanceof Error ? err : String(err));
+      return false;
     } finally {
-      res.conn.release();
+      conn.release();
     }
   }
 

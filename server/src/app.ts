@@ -35,8 +35,10 @@ import { TeamReadRepository } from "./Database/repositories/team/TeamReadReposit
 import { TeamWriteRepository } from "./Database/repositories/team/TeamWriteRepository";
 import { TeamInvitationReadRepository } from "./Database/repositories/team_invitations/TeamInvitationReadRepository";
 import { TeamInvitationWriteRepository } from "./Database/repositories/team_invitations/TeamInvitationWriteRepository";
-import { TournamentRegistrationRepository } from "./Database/repositories/tournaments/TournamentRegistrationRepository";
-import { UserWatchlistRepository } from "./Database/repositories/watchlists/UserWatchlistRepository";
+import { TournamentRegistrationReadRepository } from "./Database/repositories/tournaments/TournamentRegistrationReadRepository";
+import { TournamentRegistrationWriteRepository } from "./Database/repositories/tournaments/TournamentRegistrationWriteRepository";
+import { UserWatchlistReadRepository } from "./Database/repositories/watchlists/UserWatchlistReadRepository";
+import { UserWatchlistWriteRepository } from "./Database/repositories/watchlists/UserWatchlistWriteRepository";
 import { TeamService } from "./Services/teams/TeamService";
 import { TeamController } from "./WebAPI/controllers/TeamController";
 import { UserWriteRepository } from "./Database/repositories/users/UserWriteRepository";
@@ -60,8 +62,10 @@ const teamReadRepo = new TeamReadRepository(db, logger);
 const teamWriteRepo = new TeamWriteRepository(db, logger);
 const teamInvitationReadRepo = new TeamInvitationReadRepository(db, logger);
 const teamInvitationWriteRepo = new TeamInvitationWriteRepository(db, logger);
-const tournamentRegistrationRepo = new TournamentRegistrationRepository(db, logger);
-const watchlistRepo = new UserWatchlistRepository(db, logger);
+const tournamentRegistrationReadRepo = new TournamentRegistrationReadRepository(db, logger);
+const tournamentRegistrationWriteRepo = new TournamentRegistrationWriteRepository(db, logger);
+const watchlistReadRepo = new UserWatchlistReadRepository(db, logger);
+const watchlistWriteRepo = new UserWatchlistWriteRepository(db, logger);
 
 // Services
 const teamService = new TeamService(teamReadRepo, teamWriteRepo, teamInvitationReadRepo,  teamInvitationWriteRepo, userReadRepo, logger);
@@ -69,9 +73,9 @@ const authService   = new AuthService(userWriteRepo, userReadRepo);
 const auditLogService = new AuditLogService(audithLogWriteRepo, auditLogReadRepo);
 const userService   = new UserService(userReadRepo, userWriteRepo, logger, auditLogService);
 const gameService = new GameService(gamesReadRepo, gamesWriteRepo,  auditLogService);
-const matchService = new MatchService(matchWriteRepo, matchReadRepo, teamReadRepo, tournamentReadRepo, logger);
-const tournamentService = new TournamentService(tournamentReadRepo, tournamentWriteRepo,  gamesReadRepo, teamReadRepo, tournamentRegistrationRepo, auditLogService, matchService);
-const watchlistService = new WatchlistService(watchlistRepo, tournamentReadRepo);
+const matchService = new MatchService(matchWriteRepo, matchReadRepo, teamReadRepo, tournamentReadRepo, tournamentRegistrationReadRepo, logger);
+const tournamentService = new TournamentService(tournamentReadRepo, tournamentWriteRepo,  gamesReadRepo, teamReadRepo, tournamentRegistrationReadRepo, tournamentRegistrationWriteRepo, auditLogService, matchService);
+const watchlistService = new WatchlistService(watchlistReadRepo, watchlistWriteRepo, tournamentReadRepo, gamesReadRepo);
 
 // Express
 const app = express();

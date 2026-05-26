@@ -7,6 +7,6 @@ export interface ITeamReadRepository {
   findByUserId(userId: number): Promise<Team[]>;
   findMembers(teamId: number): Promise<TeamMember[]>;
   isUserInTeam(userId: number, teamId: number): Promise<boolean>;
-  getConfirmedTournamentTeams(tournamentId: number): Promise<Team[]>
-  getRegisteredTournamentTeams(tournamentId: number): Promise<Team[]>;
+  findByIds(teamIds: number[]): Promise<Team[]>;
+  isUserCaptain(teamId: number, userId: number): Promise<boolean>;
 }
