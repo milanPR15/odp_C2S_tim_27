@@ -7,4 +7,5 @@ export interface IMatchReadRepository {
   findPlayers(matchId: number): Promise<MatchPlayer[]>;
   isCaptainOfTeamInMatch(matchId: number, captainId: number): Promise<boolean>;
   isPlayerInMatchTeam(matchId: number, userId: number): Promise<boolean>;
+  getPlayerTeam(matchId: number, userId: number): Promise<number | null>;
 }

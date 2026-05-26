@@ -73,9 +73,9 @@ const authService   = new AuthService(userWriteRepo, userReadRepo);
 const auditLogService = new AuditLogService(audithLogWriteRepo, auditLogReadRepo);
 const userService   = new UserService(userReadRepo, userWriteRepo, logger, auditLogService);
 const gameService = new GameService(gamesReadRepo, gamesWriteRepo,  auditLogService);
-const matchService = new MatchService(matchWriteRepo, matchReadRepo, teamReadRepo, tournamentReadRepo, logger);
+const matchService = new MatchService(matchWriteRepo, matchReadRepo, teamReadRepo, tournamentReadRepo, tournamentRegistrationReadRepo, logger);
 const tournamentService = new TournamentService(tournamentReadRepo, tournamentWriteRepo,  gamesReadRepo, teamReadRepo, tournamentRegistrationReadRepo, tournamentRegistrationWriteRepo, auditLogService, matchService);
-const watchlistService = new WatchlistService(watchlistReadRepo, watchlistWriteRepo, tournamentReadRepo);
+const watchlistService = new WatchlistService(watchlistReadRepo, watchlistWriteRepo, tournamentReadRepo, gamesReadRepo);
 
 // Express
 const app = express();

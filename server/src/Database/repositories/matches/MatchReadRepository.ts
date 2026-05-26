@@ -61,23 +61,11 @@ export class MatchReadRepository implements IMatchReadRepository{
     const { conn } = connResult;
 
     try {
-      const [rows] = await conn.execute<RowDataPacket[]>(`
-        SELECT EXISTS(
-          SELECT 1
-          FROM match_players mp
-          WHERE mp.match_id = ?
-            AND mp.user_id = ?
-            AND EXISTS(
-              SELECT 1
-              FROM team_members tm
-              WHERE tm.team_id = mp.team_id
-                AND tm.user_id = mp.user_id
-                AND tm.role = 'captain'
-            )
-        ) AS found
-      `, [matchId, captainId]);
-
-      return rows[0]?.found === 1;
+      const [rows] = await conn.execute<RowDataPacket[]>(
+        `SELECT 1 FROM match_players WHERE match_id = ? AND user_id = ? LIMIT 1`,
+        [matchId, captainId]
+      );
+      return rows.length > 0;
     } finally {
       conn.release();
     }
@@ -99,6 +87,23 @@ export class MatchReadRepository implements IMatchReadRepository{
       `, [matchId, userId]);
 
       return rows[0]?.found === 1;
+    } finally {
+      conn.release();
+    }
+  }
+
+  async getPlayerTeam(matchId: number, userId: number): Promise<number | null> {
+    const connResult = await this.db.getReadConnection();
+    if (!connResult) return null;
+    const { conn } = connResult;
+
+    try {
+      const [rows] = await conn.execute<RowDataPacket[]>(
+        `SELECT team_id FROM match_players WHERE match_id = ? AND user_id = ? LIMIT 1`,
+        [matchId, userId]
+      );
+      const row = (rows as any)[0];
+      return row ? Number(row.team_id) : null;
     } finally {
       conn.release();
     }

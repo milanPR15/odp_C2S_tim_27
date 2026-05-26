@@ -123,12 +123,6 @@ export class TournamentRegistrationReadRepository implements ITournamentRegistra
            tr.id,
            tr.tournament_id,
            tr.team_id,
-           COALESCE((
-             SELECT t.team_name
-             FROM team t
-             WHERE t.team_id = tr.team_id
-             LIMIT 1
-           ), '') AS team_name,
            COALESCE(tr.selected_player_ids, '') AS selected_player_ids,
            tr.status,
            COALESCE(tr.seed, 0) AS seed,

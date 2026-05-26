@@ -52,28 +52,12 @@ export class UserWatchlistReadRepository implements IUserWatchlistReadRepository
     const { conn } = connResult;
 
     try {
-      const [rows] = await conn.execute<WatchlistTournamentRow[]>(
-        `SELECT
-           uw.id,
-           uw.user_id,
-           uw.tournament_id,
-           COALESCE((SELECT t.name FROM tournaments t WHERE t.tournament_id = uw.tournament_id LIMIT 1), '') AS name,
-           COALESCE((SELECT t.game_id FROM tournaments t WHERE t.tournament_id = uw.tournament_id LIMIT 1), 0) AS game_id,
-           COALESCE((SELECT title FROM games WHERE game_id = (SELECT game_id FROM tournaments WHERE tournament_id = uw.tournament_id LIMIT 1) LIMIT 1), '') AS game_title,
-           COALESCE((SELECT logo FROM games WHERE game_id = (SELECT game_id FROM tournaments WHERE tournament_id = uw.tournament_id LIMIT 1) LIMIT 1), '') AS game_logo,
-           COALESCE((SELECT t.format FROM tournaments t WHERE t.tournament_id = uw.tournament_id LIMIT 1), 'single_elimination') AS format,
-           COALESCE((SELECT t.max_teams FROM tournaments t WHERE t.tournament_id = uw.tournament_id LIMIT 1), 0) AS max_teams,
-           COALESCE((SELECT t.entry_deadline FROM tournaments t WHERE t.tournament_id = uw.tournament_id LIMIT 1), CURRENT_TIMESTAMP) AS entry_deadline,
-           COALESCE((SELECT t.prize_pool FROM tournaments t WHERE t.tournament_id = uw.tournament_id LIMIT 1), 0) AS prize_pool,
-           COALESCE((SELECT t.status FROM tournaments t WHERE t.tournament_id = uw.tournament_id LIMIT 1), 'upcoming') AS status,
-           uw.added_at
-         FROM user_watchlist uw
-         WHERE uw.user_id = ?
-         ORDER BY uw.added_at DESC, name ASC`,
-        [userId],
+      const [rows] = await conn.execute<RowDataPacket[]>(
+        `SELECT id, user_id, tournament_id, added_at FROM user_watchlist WHERE user_id = ? ORDER BY added_at DESC`,
+        [userId]
       );
 
-      return rows.map((row) => this.fromRow(row));
+      return (rows as any).map((r: any) => ({ id: r.id, user_id: r.user_id, tournament_id: r.tournament_id, added_at: r.added_at }));
     } catch (error) {
       this.logger.error("UserWatchlistReadRepository", "findByUserId failed", error instanceof Error ? error : String(error));
       return [];

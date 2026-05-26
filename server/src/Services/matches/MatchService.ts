@@ -3,6 +3,7 @@ import { IMatchWriteRepository } from "../../Domain/repositories/matches/IMatchW
 import { IMatchReadRepository } from "../../Domain/repositories/matches/IMatchReadRepository";
 import { ITeamReadRepository } from "../../Domain/repositories/teams/ITeamReadRepository";
 import { ITournamentReadRepository } from "../../Domain/repositories/tournaments/ITournamentReadRepository";
+import { ITournamentRegistrationReadRepository } from "../../Domain/repositories/tournaments/ITournamentRegistrationReadRepository";
 import { MatchDto } from "../../Domain/DTOs/matches/MatchDto";
 import { UpdateMatchResultDto } from "../../Domain/DTOs/matches/UpdateMatchResultDto";
 import { Result } from "../../Domain/types/Result";
@@ -32,6 +33,7 @@ export class MatchService implements IMatchService {
     private readonly matchReadRepo: IMatchReadRepository,
     private readonly teamReadRepo: ITeamReadRepository,
     private readonly tournamentReadRepo: ITournamentReadRepository,
+    private readonly tournamentRegistrationReadRepo: ITournamentRegistrationReadRepository,
     private readonly logger: ILoggerService
   ) {}
 
@@ -367,11 +369,15 @@ export class MatchService implements IMatchService {
     performanceNotes?: string
   ): Promise<Result<void>> {
     try {
+        const captainTeamId = await this.matchReadRepo.getPlayerTeam(matchId, captainId);
+        if (captainTeamId === null) {
+          return { success: false, error: "Only the team captain can add players to the match", statusCode: 403 };
+        }
 
-      const isCaptain = await this.matchReadRepo.isCaptainOfTeamInMatch(matchId, captainId);
-      if (!isCaptain) {
-        return { success: false, error: "Only the team captain can add players to the match", statusCode: 403 };
-      }
+        const isCaptain = await this.teamReadRepo.isUserCaptain(captainTeamId, captainId);
+        if (!isCaptain) {
+          return { success: false, error: "Only the team captain can add players to the match", statusCode: 403 };
+        }
 
       const alreadyInMatch = await this.matchReadRepo.isPlayerInMatchTeam(matchId, userId);
       if (alreadyInMatch) {
@@ -398,9 +404,13 @@ export class MatchService implements IMatchService {
     userId: number
   ): Promise<Result<void>> {
     try {
-
-      const isCaptain = await this.matchReadRepo.isCaptainOfTeamInMatch(matchId, captainId);
+      const captainTeamId = await this.matchReadRepo.getPlayerTeam(matchId, captainId);
       const isSelf = captainId === userId;
+
+      let isCaptain = false;
+      if (captainTeamId !== null) {
+        isCaptain = await this.teamReadRepo.isUserCaptain(captainTeamId, captainId);
+      }
 
       if (!isCaptain && !isSelf) {
         return { success: false, error: "Only the team captain or the player himself can remove a player", statusCode: 403 };
@@ -439,7 +449,16 @@ export class MatchService implements IMatchService {
         };
       }
 
-      const teams = await this.teamReadRepo.getConfirmedTournamentTeams(tournamentId);
+      const registrations = await this.tournamentReadRepo ? [] : [];
+      let teams: Team[] = [];
+
+      const regs = await this.tournamentRegistrationReadRepo.findByTournament(tournamentId);
+      const confirmedTeamIds = regs
+        .filter((r: any) => r.status === 'confirmed' || r.status === 1)
+        .map((r: any) => r.team_id)
+        .filter((id: any) => !!id);
+
+      teams = confirmedTeamIds.length > 0 ? await this.teamReadRepo.findByIds(confirmedTeamIds) : [];
 
       if (teams.length < 2) {
         return {

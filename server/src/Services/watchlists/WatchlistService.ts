@@ -2,6 +2,7 @@ import { IWatchlistService } from "../../Domain/services/watchlists/IWatchlistSe
 import { IUserWatchlistReadRepository } from "../../Domain/repositories/watchlists/IUserWatchlistReadRepository";
 import { IUserWatchlistWriteRepository } from "../../Domain/repositories/watchlists/IUserWatchlistWriteRepository";
 import { ITournamentReadRepository } from "../../Domain/repositories/tournaments/ITournamentReadRepository";
+import { IGamesReadRepository } from "../../Domain/repositories/games/IGamesReadRepository";
 import { Result } from "../../Domain/types/Result";
 import { WatchlistTournamentDto } from "../../Domain/DTOs/watchlists/WatchlistTournamentDto";
 
@@ -10,11 +11,36 @@ export class WatchlistService implements IWatchlistService {
     private readonly watchlistReadRepository: IUserWatchlistReadRepository,
     private readonly watchlistWriteRepository: IUserWatchlistWriteRepository,
     private readonly tournamentReadRepository: ITournamentReadRepository,
+    private readonly gamesReadRepository: IGamesReadRepository,
   ) {}
 
   async getForUser(userId: number): Promise<Result<WatchlistTournamentDto[]>> {
-    const items = await this.watchlistReadRepository.findByUserId(userId);
-    return { success: true, data: items };
+    const entries = await this.watchlistReadRepository.findByUserId(userId);
+    const result: WatchlistTournamentDto[] = [];
+
+    for (const e of entries) {
+      const tournament = await this.tournamentReadRepository.findById(e.tournament_id);
+      if (!tournament.tournament_id) continue;
+      const game = await this.gamesReadRepository.getById(tournament.game_id);
+
+      result.push(new WatchlistTournamentDto(
+        e.id,
+        e.user_id,
+        e.tournament_id,
+        tournament.name,
+        game.game_id || 0,
+        game.title || "",
+        game.logo || "",
+        tournament.format,
+        tournament.max_teams,
+        tournament.entry_deadline,
+        tournament.prize_pool,
+        tournament.status,
+        e.added_at
+      ));
+    }
+
+    return { success: true, data: result };
   }
 
   async follow(userId: number, tournamentId: number): Promise<Result<void>> {

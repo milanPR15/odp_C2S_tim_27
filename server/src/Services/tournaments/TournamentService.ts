@@ -133,6 +133,12 @@ export class TournamentService implements ITournamentService {
         }
 
         const registrations = await this.registrationReadRepository.findByTournament(id);
+        for (const reg of registrations) {
+            if (reg.team_id) {
+                const team = await this.teamReadRepository.findById(reg.team_id);
+                reg.team_name = team.team_name || "";
+            }
+        }
         return { success: true, data: registrations };
     }
 
