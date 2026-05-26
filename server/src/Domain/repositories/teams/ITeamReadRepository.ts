@@ -1,6 +1,5 @@
 import { Team } from "../../models/Team";
 import { TeamMember } from "../../models/TeamMember";
-import { CreateTeamDto } from "../../DTOs/teams/CreateTeamDto";
 
 export interface ITeamReadRepository {
   findById(teamId: number): Promise<Team>;

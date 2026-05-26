@@ -1,4 +1,6 @@
+import { UserWatchlist } from "../../models/UserWatchlist";
+
 export interface IUserWatchlistReadRepository {
-  findByUserId(userId: number): Promise<{ id: number; user_id: number; tournament_id: number; added_at: Date }[]>;
+  findByUserId(userId: number): Promise<UserWatchlist[]>;
   exists(userId: number, tournamentId: number): Promise<boolean>;
 }

@@ -1,6 +1,6 @@
 import { DbManager } from "../../connection/DbConnectionPool";
-import { PaginatedListDto } from "../../../Domain/DTOs/lists/PaginatedListDto";
 import { AuditLog } from "../../../Domain/models/AuditLog";
+import { PaginatedList } from "../../../Domain/models/PaginatedList";
 import { AuditMapper } from "./AuditMapper";
 import { RowDataPacket } from "mysql2";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
@@ -12,9 +12,9 @@ export class AuditReadRepository implements IAuditReadRepository{
     private readonly logger: ILoggerService
   ) {}
 
-  async findAll(page: number, limit: number): Promise<PaginatedListDto<AuditLog>> {
+  async findAll(page: number, limit: number): Promise<PaginatedList<AuditLog>> {
     const res = await this.db.getReadConnection();
-    if (!res) return new PaginatedListDto([], 0, page, limit);
+    if (!res) return new PaginatedList([], 0, page, limit);
 
     const offset = Math.max(0, (page - 1) * limit);
     try {
@@ -26,7 +26,7 @@ export class AuditReadRepository implements IAuditReadRepository{
         `SELECT COUNT(*) as total FROM audit_logs`
       );
 
-      return new PaginatedListDto(
+      return new PaginatedList(
         rows.map(AuditMapper.fromRow),
         cnt[0]?.total ?? 0,
         page,
@@ -35,7 +35,7 @@ export class AuditReadRepository implements IAuditReadRepository{
     }
     catch (err) {
       this.logger.error("AuditReadRepository", "findAll failed", err instanceof Error ? err : String(err));
-      return new PaginatedListDto([], 0, page, limit);  
+      return new PaginatedList([], 0, page, limit);  
     } finally {
       res.conn.release();
     }

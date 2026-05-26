@@ -2,19 +2,21 @@ import { DbManager } from "../../connection/DbConnectionPool";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
 import { ITournamentRegistrationReadRepository } from "../../../Domain/repositories/tournaments/ITournamentRegistrationReadRepository";
 import { TournamentRegistration } from "../../../Domain/models/TournamentRegistration";
-import { TournamentRegistrationDto } from "../../../Domain/DTOs/tournaments/TournamentRegistrationDto";
 import { RegistrationStatus } from "../../../Domain/enums/RegistrationStatus";
-import { RowDataPacket } from "mysql2/promise";
+import { PoolConnection, RowDataPacket } from "mysql2/promise";
 
 type TournamentRegistrationRow = RowDataPacket & {
   id: number;
   tournament_id: number;
   team_id: number;
-  team_name: string;
-  selected_player_ids: string;
   status: string;
   seed: number;
   registered_at: Date | string;
+};
+
+type TournamentRegistrationUserRow = RowDataPacket & {
+  tournament_registration_id: number;
+  user_id: number;
 };
 
 export class TournamentRegistrationReadRepository implements ITournamentRegistrationReadRepository {
@@ -23,9 +25,7 @@ export class TournamentRegistrationReadRepository implements ITournamentRegistra
     private readonly logger: ILoggerService
   ) {}
 
-  private fromRow(row: TournamentRegistrationRow): TournamentRegistration {
-    const selectedPlayerIds = row.selected_player_ids === "" ? [] : JSON.parse(row.selected_player_ids) as number[];
-
+  private fromRow(row: TournamentRegistrationRow, selectedUserIds: number[] = []): TournamentRegistration {
     return new TournamentRegistration(
       row.id,
       row.tournament_id,
@@ -33,23 +33,33 @@ export class TournamentRegistrationReadRepository implements ITournamentRegistra
       row.status as RegistrationStatus,
       row.seed ?? 0,
       row.registered_at instanceof Date ? row.registered_at : new Date(row.registered_at),
-      selectedPlayerIds
+      selectedUserIds
     );
   }
 
-  private fromDtoRow(row: TournamentRegistrationRow): TournamentRegistrationDto {
-    const selectedPlayerIds = row.selected_player_ids === "" ? [] : JSON.parse(row.selected_player_ids) as number[];
+  private async loadSelectedUsersByRegistrationIds(
+    conn: PoolConnection,
+    registrationIds: number[]
+  ): Promise<Map<number, number[]>> {
+    const selectedUsersByRegistrationId = new Map<number, number[]>();
+    if (registrationIds.length === 0) return selectedUsersByRegistrationId;
 
-    return new TournamentRegistrationDto(
-      row.id,
-      row.tournament_id,
-      row.team_id,
-      row.team_name ?? "",
-      row.status as RegistrationStatus,
-      row.seed ?? 0,
-      row.registered_at instanceof Date ? row.registered_at : new Date(row.registered_at),
-      selectedPlayerIds
+    const placeholders = registrationIds.map(() => "?").join(", ");
+    const [rows] = await conn.execute<TournamentRegistrationUserRow[]>(
+      `SELECT tournament_registration_id, user_id
+         FROM tournament_registration_users
+        WHERE tournament_registration_id IN (${placeholders})
+        ORDER BY tournament_registration_id ASC, user_id ASC`,
+      registrationIds,
     );
+
+    for (const row of rows) {
+      const current = selectedUsersByRegistrationId.get(row.tournament_registration_id) ?? [];
+      current.push(row.user_id);
+      selectedUsersByRegistrationId.set(row.tournament_registration_id, current);
+    }
+
+    return selectedUsersByRegistrationId;
   }
 
   async findById(id: number): Promise<TournamentRegistration> {
@@ -63,7 +73,6 @@ export class TournamentRegistrationReadRepository implements ITournamentRegistra
            id,
            tournament_id,
            team_id,
-           COALESCE(selected_player_ids, '') AS selected_player_ids,
            status,
            COALESCE(seed, 0) AS seed,
            registered_at
@@ -73,7 +82,10 @@ export class TournamentRegistrationReadRepository implements ITournamentRegistra
         [id]
       );
 
-      return rows[0] ? this.fromRow(rows[0]) : new TournamentRegistration();
+      if (!rows[0]) return new TournamentRegistration();
+
+      const selectedUsersByRegistrationId = await this.loadSelectedUsersByRegistrationIds(conn, [rows[0].id]);
+      return this.fromRow(rows[0], selectedUsersByRegistrationId.get(rows[0].id) ?? []);
     } catch (error) {
       this.logger.error("TournamentRegistrationReadRepository", "findById failed", error instanceof Error ? error : String(error));
       return new TournamentRegistration();
@@ -93,7 +105,6 @@ export class TournamentRegistrationReadRepository implements ITournamentRegistra
            id,
            tournament_id,
            team_id,
-           COALESCE(selected_player_ids, '') AS selected_player_ids,
            status,
            COALESCE(seed, 0) AS seed,
            registered_at
@@ -103,7 +114,10 @@ export class TournamentRegistrationReadRepository implements ITournamentRegistra
         [tournamentId, teamId]
       );
 
-      return rows[0] ? this.fromRow(rows[0]) : new TournamentRegistration();
+      if (!rows[0]) return new TournamentRegistration();
+
+      const selectedUsersByRegistrationId = await this.loadSelectedUsersByRegistrationIds(conn, [rows[0].id]);
+      return this.fromRow(rows[0], selectedUsersByRegistrationId.get(rows[0].id) ?? []);
     } catch (error) {
       this.logger.error("TournamentRegistrationReadRepository", "findByTournamentAndTeam failed", error instanceof Error ? error : String(error));
       return new TournamentRegistration();
@@ -112,7 +126,7 @@ export class TournamentRegistrationReadRepository implements ITournamentRegistra
     }
   }
 
-  async findByTournament(tournamentId: number): Promise<TournamentRegistrationDto[]> {
+  async findByTournament(tournamentId: number): Promise<TournamentRegistration[]> {
     const connResult = await this.db.getReadConnection();
     if (!connResult) return [];
     const { conn } = connResult;
@@ -123,7 +137,6 @@ export class TournamentRegistrationReadRepository implements ITournamentRegistra
            tr.id,
            tr.tournament_id,
            tr.team_id,
-           COALESCE(tr.selected_player_ids, '') AS selected_player_ids,
            tr.status,
            COALESCE(tr.seed, 0) AS seed,
            tr.registered_at
@@ -133,7 +146,12 @@ export class TournamentRegistrationReadRepository implements ITournamentRegistra
         [tournamentId]
       );
 
-      return rows.map((row) => this.fromDtoRow(row));
+      const selectedUsersByRegistrationId = await this.loadSelectedUsersByRegistrationIds(
+        conn,
+        rows.map((row) => row.id),
+      );
+
+      return rows.map((row) => this.fromRow(row, selectedUsersByRegistrationId.get(row.id) ?? []));
     } catch (error) {
       this.logger.error("TournamentRegistrationReadRepository", "findByTournament failed", error instanceof Error ? error : String(error));
       return [];
