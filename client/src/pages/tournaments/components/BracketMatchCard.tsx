@@ -1,4 +1,3 @@
-import React from "react";
 import { StatusBadge } from "../../../components/ui/UI";
 import { formatDateTime } from "./tournamentUtils";
 import type { BracketMatch } from "./tournamentUtils";

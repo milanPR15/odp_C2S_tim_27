@@ -1,4 +1,3 @@
-import React from "react";
 import { Table, TableHead, Empty } from "../../../components/ui/UI";
 import { formatDateTime } from "./tournamentUtils";
 import type { TournamentRegistrationDto } from "../../../models/tournament/TournamentTypes";
