@@ -186,14 +186,12 @@ export class TeamService implements ITeamService {
   }
 
   async sendInvite(teamId: number, captainId: number, username: string): Promise<Result<boolean>> {
-    // 1. Find user
     const targetUser = await this.userReadRepo.findByUsername(username);
     if (!targetUser.id) {
        return { success: false, error: "User not found", statusCode: 404 };
     }
     const targetUserId = targetUser.id;
 
-    // 2. Verify captain
     const members = await this.teamReadRepo.findMembers(teamId);
     if (members.length === 0) {
       return { success: false, error: "Team not found", statusCode: 404 };
@@ -204,19 +202,16 @@ export class TeamService implements ITeamService {
       return { success: false, error: "Only team captain can invite members", statusCode: 403 };
     }
 
-    // 3. Check if already in the team
     const inTeam = members.some((m) => m.user_id === targetUserId);
     if (inTeam) {
       return { success: false, error: "User is already in the team", statusCode: 400 };
     }
 
-    // 4. Check for pending invites
     const existingInvite = await this.invitationReadRepo.findByTeamAndUser(teamId, targetUserId);
     if (existingInvite.id && existingInvite.status === InvitationStatus.PENDING) {
       return { success: false, error: "An invitation is already pending for this user", statusCode: 400 };
     }
 
-    // 5. Create invite
     const invite = await this.invitationWriteRepo.create(teamId, targetUserId);
     if (!invite.id) {
        return { success: false, error: "Failed to send invitation", statusCode: 500 };
@@ -226,7 +221,6 @@ export class TeamService implements ITeamService {
   }
 
   async respondToInvite(teamId: number, userId: number, accept: boolean): Promise<Result<boolean>> {
-    // 1. Get invite by team and user
     const invite = await this.invitationReadRepo.findByTeamAndUser(teamId, userId);
     if (!invite.id) {
       return { success: false, error: "Pending invitation not found", statusCode: 404 };
@@ -236,7 +230,6 @@ export class TeamService implements ITeamService {
       return { success: false, error: "Invitation is no longer pending", statusCode: 400 };
     }
 
-    // 2. Update status and conditionally add to team
     const newStatus = accept ? InvitationStatus.ACCEPTED : InvitationStatus.DECLINED;
     const updated = await this.invitationWriteRepo.updateStatus(invite.id, newStatus);
 
