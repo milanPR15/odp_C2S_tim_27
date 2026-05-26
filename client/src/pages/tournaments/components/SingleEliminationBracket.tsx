@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import type { BracketMatch } from "./tournamentUtils";
 import { buildSingleEliminationLayout } from "./tournamentUtils";
 import { resolveBracketSlotLabel } from "./tournamentUtils";
