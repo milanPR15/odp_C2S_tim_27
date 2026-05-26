@@ -30,14 +30,17 @@ import { GameController } from "./WebAPI/controllers/GamesController";
 import { AuditLogController } from "./WebAPI/controllers/AuditLogController";
 import { MatchController } from "./WebAPI/controllers/MatchController";
 import { HealthController } from "./WebAPI/controllers/HealthController";
+import { WatchlistController } from "./WebAPI/controllers/WatchlistController";
 import { TeamReadRepository } from "./Database/repositories/team/TeamReadRepository";
 import { TeamWriteRepository } from "./Database/repositories/team/TeamWriteRepository";
 import { TeamInvitationReadRepository } from "./Database/repositories/team_invitations/TeamInvitationReadRepository";
 import { TeamInvitationWriteRepository } from "./Database/repositories/team_invitations/TeamInvitationWriteRepository";
 import { TournamentRegistrationRepository } from "./Database/repositories/tournaments/TournamentRegistrationRepository";
+import { UserWatchlistRepository } from "./Database/repositories/watchlists/UserWatchlistRepository";
 import { TeamService } from "./Services/teams/TeamService";
 import { TeamController } from "./WebAPI/controllers/TeamController";
 import { UserWriteRepository } from "./Database/repositories/users/UserWriteRepository";
+import { WatchlistService } from "./Services/watchlists/WatchlistService";
 
 export const logger = new ConsoleLoggerService();
 export const db     = new DbManager(logger);
@@ -58,6 +61,7 @@ const teamWriteRepo = new TeamWriteRepository(db, logger);
 const teamInvitationReadRepo = new TeamInvitationReadRepository(db, logger);
 const teamInvitationWriteRepo = new TeamInvitationWriteRepository(db, logger);
 const tournamentRegistrationRepo = new TournamentRegistrationRepository(db, logger);
+const watchlistRepo = new UserWatchlistRepository(db, logger);
 
 // Services
 const teamService = new TeamService(teamReadRepo, teamWriteRepo, teamInvitationReadRepo,  teamInvitationWriteRepo, userReadRepo, logger);
@@ -67,6 +71,7 @@ const userService   = new UserService(userReadRepo, userWriteRepo, logger, audit
 const gameService = new GameService(gamesReadRepo, gamesWriteRepo,  auditLogService);
 const matchService = new MatchService(matchWriteRepo, matchReadRepo, teamReadRepo, tournamentReadRepo, logger);
 const tournamentService = new TournamentService(tournamentReadRepo, tournamentWriteRepo,  gamesReadRepo, teamReadRepo, tournamentRegistrationRepo, auditLogService, matchService);
+const watchlistService = new WatchlistService(watchlistRepo, tournamentReadRepo);
 
 // Express
 const app = express();
@@ -81,5 +86,6 @@ app.use("/api/v1", new AuditLogController(auditLogService).getRouter());
 app.use("/api/v1", new MatchController(matchService).getRouter());
 app.use("/api/v1", new UserController(userService).getRouter());
 app.use("/api/v1", new TeamController(teamService).getRouter());
+app.use("/api/v1", new WatchlistController(watchlistService).getRouter());
 app.use("/api/v1", new HealthController(db).getRouter());
 export default app;

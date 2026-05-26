@@ -150,6 +150,7 @@ CREATE TABLE IF NOT EXISTS user_watchlist (
   user_id        INT UNSIGNED NOT NULL,
   tournament_id  INT UNSIGNED NOT NULL,
   added_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_user_tournament (user_id, tournament_id),
   INDEX idx_user_id (user_id),
   INDEX idx_tournament_id (tournament_id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
