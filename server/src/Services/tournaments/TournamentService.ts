@@ -9,7 +9,8 @@ import { ITournamentService } from "../../Domain/services/tournaments/ITournamen
 import { IAuditLogService } from "../../Domain/services/auditLogs/IAuditLogService";
 import { IGamesReadRepository } from "../../Domain/repositories/games/IGamesReadRepository";
 import { ITeamReadRepository } from "../../Domain/repositories/teams/ITeamReadRepository";
-import { ITournamentRegistrationRepository } from "../../Domain/repositories/tournaments/ITournamentRegistrationRepository";
+import { ITournamentRegistrationReadRepository } from "../../Domain/repositories/tournaments/ITournamentRegistrationReadRepository";
+import { ITournamentRegistrationWriteRepository } from "../../Domain/repositories/tournaments/ITournamentRegistrationWriteRepository";
 import { TournamentRegistration } from "../../Domain/models/TournamentRegistration";
 import { TournamentStatus } from "../../Domain/enums/TournamentStatus";
 import { RegistrationStatus } from "../../Domain/enums/RegistrationStatus";
@@ -25,7 +26,8 @@ export class TournamentService implements ITournamentService {
         private readonly tournamentWriteRepository: ITournamentWriteRepository,
         private readonly gamesReadRepository: IGamesReadRepository,
         private readonly teamReadRepository: ITeamReadRepository,
-        private readonly registrationRepository: ITournamentRegistrationRepository,
+        private readonly registrationReadRepository: ITournamentRegistrationReadRepository,
+        private readonly registrationWriteRepository: ITournamentRegistrationWriteRepository,
         private readonly auditLogService: IAuditLogService,
         private readonly matchService: IMatchService
     ) {}
@@ -59,7 +61,7 @@ export class TournamentService implements ITournamentService {
     }
 
     private async ensureMatchesGenerated(tournament: Tournament): Promise<Result<void>> {
-        const confirmedCount = await this.registrationRepository.countConfirmedByTournament(tournament.tournament_id);
+        const confirmedCount = await this.registrationReadRepository.countConfirmedByTournament(tournament.tournament_id);
         if (confirmedCount < tournament.max_teams) {
             return { success: true, data: undefined };
         }
@@ -115,7 +117,7 @@ export class TournamentService implements ITournamentService {
             return { success: false, statusCode: 404, error: `Tournament with ID ${id} not found.` };
         }
 
-        const count = await this.registrationRepository.countByTournament(id);
+        const count = await this.registrationReadRepository.countByTournament(id);
         return { success: true, data: count };
     }
 
@@ -130,7 +132,7 @@ export class TournamentService implements ITournamentService {
             return generationResult;
         }
 
-        const registrations = await this.registrationRepository.findByTournament(id);
+        const registrations = await this.registrationReadRepository.findByTournament(id);
         return { success: true, data: registrations };
     }
 
@@ -263,12 +265,12 @@ export class TournamentService implements ITournamentService {
             return { success: false, statusCode: 403, error: "Only the team captain can register the team." };
         }
 
-        const alreadyRegistered = await this.registrationRepository.findByTournamentAndTeam(tournamentId, dto.teamId);
+        const alreadyRegistered = await this.registrationReadRepository.findByTournamentAndTeam(tournamentId, dto.teamId);
         if (alreadyRegistered.id !== 0) {
             return { success: false, statusCode: 409, error: "This team is already registered for this tournament." };
         }
 
-        const confirmedCount = await this.registrationRepository.countByTournament(tournamentId);
+        const confirmedCount = await this.registrationReadRepository.countByTournament(tournamentId);
         if (confirmedCount >= tournament.max_teams) {
             return { success: false, statusCode: 409, error: "The tournament has reached its maximum number of teams." };
         }
@@ -291,7 +293,7 @@ export class TournamentService implements ITournamentService {
             }
         }
 
-        const registration = await this.registrationRepository.create(new TournamentRegistration(
+        const registration = await this.registrationWriteRepository.create(new TournamentRegistration(
             0,
             tournamentId,
             dto.teamId,
@@ -322,7 +324,7 @@ export class TournamentService implements ITournamentService {
             return { success: false, statusCode: 404, error: `Tournament with ID ${tournamentId} not found.` };
         }
 
-        const registration = await this.registrationRepository.findById(registrationId);
+        const registration = await this.registrationReadRepository.findById(registrationId);
         if (!registration.id || registration.tournament_id !== tournamentId) {
             return { success: false, statusCode: 404, error: "Tournament registration not found." };
         }
@@ -337,7 +339,7 @@ export class TournamentService implements ITournamentService {
 
         const alreadyConfirmed = registration.status === RegistrationStatus.CONFIRMED;
         if (!alreadyConfirmed) {
-            const updated = await this.registrationRepository.updateStatus(registrationId, RegistrationStatus.CONFIRMED);
+            const updated = await this.registrationWriteRepository.updateStatus(registrationId, RegistrationStatus.CONFIRMED);
             if (!updated) {
                 return { success: false, statusCode: 500, error: "Failed to confirm the tournament registration." };
             }
