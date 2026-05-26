@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { matchesApi } from "../../api_services/matches/MatchesAPIService";
 import MatchDetailsDialog from "../../components/matches/MatchDetailsDialog";
 import { tournamentApi } from "../../api_services/tournament/TournamentAPIService";
+import { watchlistApi } from "../../api_services/watchlist/WatchlistAPIService";
 import { TournamentTeamRegistrationPanel } from "../../components/tournament_registration/TournamentTeamRegistrationPanel";
 import {
   BackButton,
@@ -66,6 +67,8 @@ export default function TournamentDetailsPage() {
   const [selectedMatchId, setSelectedMatchId] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isConfirmingId, setIsConfirmingId] = useState<number>(0);
+  const [isWatching, setIsWatching] = useState(false);
+  const [isWatchlistBusy, setIsWatchlistBusy] = useState(false);
   const [error, setError] = useState("");
 
   const fetchTournamentData = useCallback(async () => {
@@ -144,6 +147,50 @@ export default function TournamentDetailsPage() {
       active = false;
     };
   }, [fetchTournamentData]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadWatchlistState() {
+      if (!id) return;
+
+      const tournamentId = Number(id);
+      if (Number.isNaN(tournamentId)) return;
+
+      const res = await watchlistApi.getMine();
+      if (!active) return;
+
+      if (res.success) {
+        setIsWatching((res.data ?? []).some((item) => item.tournament_id === tournamentId));
+      }
+    }
+
+    void loadWatchlistState();
+
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  async function toggleWatchlist() {
+    if (tournament.tournament_id === 0) return;
+
+    setIsWatchlistBusy(true);
+    setError("");
+
+    const res = isWatching
+      ? await watchlistApi.unfollow(tournament.tournament_id)
+      : await watchlistApi.follow(tournament.tournament_id);
+
+    setIsWatchlistBusy(false);
+
+    if (!res.success) {
+      setError(res.message || "Failed to update your watchlist.");
+      return;
+    }
+
+    setIsWatching(!isWatching);
+  }
 
   async function confirmRegistration(registrationId: number) {
     if (tournament.tournament_id === 0) return;
@@ -255,6 +302,20 @@ export default function TournamentDetailsPage() {
       <PageHeader
         eyebrow="Tournaments"
         title={tournament.name}
+        action={user ? (
+          <button
+            type="button"
+            onClick={() => void toggleWatchlist()}
+            disabled={isWatchlistBusy}
+            className={`inline-flex items-center gap-2 h-10 rounded-xl border px-4 text-xs font-medium uppercase tracking-wider transition disabled:opacity-60 ${
+              isWatching
+                ? "border-white/12 bg-white/6 text-white/80 hover:bg-white/10"
+                : "border-cyan-300/40 bg-cyan-300/15 text-cyan-100 hover:bg-cyan-300/20"
+            }`}
+          >
+            {isWatching ? "Unfollow" : "Follow"}
+          </button>
+        ) : undefined}
       />
 
       {error && (
