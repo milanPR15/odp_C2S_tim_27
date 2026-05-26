@@ -60,6 +60,26 @@ export class TournamentService implements ITournamentService {
         );
     }
 
+    private async mapRegistrationToDto(registration: TournamentRegistration): Promise<TournamentRegistrationDto> {
+        let teamName = "";
+
+        if (registration.team_id) {
+            const team = await this.teamReadRepository.findById(registration.team_id);
+            teamName = team.team_name || "";
+        }
+
+        return new TournamentRegistrationDto(
+            registration.id,
+            registration.tournament_id,
+            registration.team_id,
+            teamName,
+            registration.status,
+            registration.seed,
+            registration.registered_at,
+            registration.selected_user_ids,
+        );
+    }
+
     private async ensureMatchesGenerated(tournament: Tournament): Promise<Result<void>> {
         const confirmedCount = await this.registrationReadRepository.countConfirmedByTournament(tournament.tournament_id);
         if (confirmedCount < tournament.max_teams) {
@@ -133,13 +153,11 @@ export class TournamentService implements ITournamentService {
         }
 
         const registrations = await this.registrationReadRepository.findByTournament(id);
-        for (const reg of registrations) {
-            if (reg.team_id) {
-                const team = await this.teamReadRepository.findById(reg.team_id);
-                reg.team_name = team.team_name || "";
-            }
-        }
-        return { success: true, data: registrations };
+        const registrationDtos = await Promise.all(
+            registrations.map((registration) => this.mapRegistrationToDto(registration))
+        );
+
+        return { success: true, data: registrationDtos };
     }
 
     async create(tournament: CreateTournamentDto, userId: number = 0): Promise<Result<TournamentDto>> {
@@ -318,7 +336,7 @@ export class TournamentService implements ITournamentService {
             "REGISTER",
             "TournamentRegistration",
             registration.id,
-            JSON.stringify({ tournamentId, teamId: dto.teamId, selectedPlayerIds: Array.from(selectedIds) })
+            JSON.stringify({ tournamentId, teamId: dto.teamId, selectedUserIds: Array.from(selectedIds) })
         );
 
         return { success: true, data: undefined };

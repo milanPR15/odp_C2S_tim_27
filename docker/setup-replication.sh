@@ -144,7 +144,6 @@ CREATE TABLE IF NOT EXISTS tournament_registrations (
   id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   tournament_id  INT UNSIGNED NOT NULL,
   team_id        INT UNSIGNED NOT NULL,
-  selected_player_ids TEXT DEFAULT NULL,
   registered_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
   status         ENUM('pending','confirmed','disqualified') DEFAULT 'pending',
   seed           INT UNSIGNED DEFAULT NULL,
@@ -152,6 +151,15 @@ CREATE TABLE IF NOT EXISTS tournament_registrations (
   INDEX idx_team_id (team_id),
   FOREIGN KEY (tournament_id) REFERENCES tournaments(tournament_id) ON DELETE CASCADE,
   FOREIGN KEY (team_id) REFERENCES team(team_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS tournament_registration_users (
+  tournament_registration_id INT UNSIGNED NOT NULL,
+  user_id                    INT UNSIGNED NOT NULL,
+  PRIMARY KEY (tournament_registration_id, user_id),
+  INDEX idx_tru_user_id (user_id),
+  FOREIGN KEY (tournament_registration_id) REFERENCES tournament_registrations(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS matches (

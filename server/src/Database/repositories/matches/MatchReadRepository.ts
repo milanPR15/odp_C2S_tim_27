@@ -92,9 +92,9 @@ export class MatchReadRepository implements IMatchReadRepository{
     }
   }
 
-  async getPlayerTeam(matchId: number, userId: number): Promise<number | null> {
+  async getPlayerTeam(matchId: number, userId: number): Promise<number> {
     const connResult = await this.db.getReadConnection();
-    if (!connResult) return null;
+    if (!connResult) return 0;
     const { conn } = connResult;
 
     try {
@@ -102,8 +102,8 @@ export class MatchReadRepository implements IMatchReadRepository{
         `SELECT team_id FROM match_players WHERE match_id = ? AND user_id = ? LIMIT 1`,
         [matchId, userId]
       );
-      const row = (rows as any)[0];
-      return row ? Number(row.team_id) : null;
+      const row = (rows as RowDataPacket[])[0];
+      return row ? Number(row.team_id) : 0;
     } finally {
       conn.release();
     }

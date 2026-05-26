@@ -2,7 +2,21 @@ import { DbManager } from "../../connection/DbConnectionPool";
 import { ILoggerService } from "../../../Domain/services/logger/ILoggerService";
 import { ITournamentRegistrationWriteRepository } from "../../../Domain/repositories/tournaments/ITournamentRegistrationWriteRepository";
 import { TournamentRegistration } from "../../../Domain/models/TournamentRegistration";
-import { ResultSetHeader } from "mysql2/promise";
+import { RegistrationStatus } from "../../../Domain/enums/RegistrationStatus";
+import { ResultSetHeader, RowDataPacket } from "mysql2/promise";
+
+type TournamentRegistrationUserRow = RowDataPacket & {
+  user_id: number;
+};
+
+type TournamentRegistrationRow = RowDataPacket & {
+  id: number;
+  tournament_id: number;
+  team_id: number;
+  status: RegistrationStatus;
+  seed: number;
+  registered_at: Date | string;
+};
 
 export class TournamentRegistrationWriteRepository implements ITournamentRegistrationWriteRepository {
   constructor(
@@ -16,26 +30,41 @@ export class TournamentRegistrationWriteRepository implements ITournamentRegistr
     const { conn } = connResult;
 
     try {
+      await conn.beginTransaction();
+
       const [result] = await conn.execute<ResultSetHeader>(
-        `INSERT INTO tournament_registrations (tournament_id, team_id, selected_player_ids, status, seed)
-         VALUES (?, ?, ?, ?, ?)` ,
+        `INSERT INTO tournament_registrations (tournament_id, team_id, status, seed)
+         VALUES (?, ?, ?, ?)` ,
         [
           registration.tournament_id,
           registration.team_id,
-          JSON.stringify(registration.selected_player_ids ?? []),
           registration.status,
           registration.seed ?? 0,
         ]
       );
 
-      if (result.insertId === 0) return new TournamentRegistration();
+      if (result.insertId === 0) {
+        await conn.rollback();
+        return new TournamentRegistration();
+      }
 
-      const [rows] = await conn.execute(
+      const selectedUserIds = registration.selected_user_ids ?? [];
+      if (selectedUserIds.length > 0) {
+        const valuesClause = selectedUserIds.map(() => "(?, ?)").join(", ");
+        const params = selectedUserIds.flatMap((userId) => [result.insertId, userId]);
+
+        await conn.execute(
+          `INSERT INTO tournament_registration_users (tournament_registration_id, user_id)
+           VALUES ${valuesClause}`,
+          params,
+        );
+      }
+
+      const [rows] = await conn.execute<TournamentRegistrationRow[]>(
         `SELECT
            id,
            tournament_id,
            team_id,
-           COALESCE(selected_player_ids, '') AS selected_player_ids,
            status,
            COALESCE(seed, 0) AS seed,
            registered_at
@@ -45,17 +74,28 @@ export class TournamentRegistrationWriteRepository implements ITournamentRegistr
         [result.insertId]
       );
 
-      const row = (rows as any)[0];
+      const [selectedUserRows] = await conn.execute<TournamentRegistrationUserRow[]>(
+        `SELECT user_id
+           FROM tournament_registration_users
+          WHERE tournament_registration_id = ?
+          ORDER BY user_id ASC`,
+        [result.insertId]
+      );
+
+      await conn.commit();
+
+      const row = rows[0];
       return row ? new TournamentRegistration(
         row.id,
         row.tournament_id,
         row.team_id,
         row.status,
         row.seed,
-        new Date(row.registered_at),
-        row.selected_player_ids === "" ? [] : JSON.parse(row.selected_player_ids)
+        row.registered_at instanceof Date ? row.registered_at : new Date(row.registered_at),
+        selectedUserRows.map((selectedUserRow) => selectedUserRow.user_id)
       ) : new TournamentRegistration();
     } catch (error) {
+      await conn.rollback();
       this.logger.error("TournamentRegistrationWriteRepository", "create failed", error instanceof Error ? error : String(error));
       return new TournamentRegistration();
     } finally {
@@ -63,7 +103,7 @@ export class TournamentRegistrationWriteRepository implements ITournamentRegistr
     }
   }
 
-  async updateStatus(id: number, status: any): Promise<boolean> {
+  async updateStatus(id: number, status: RegistrationStatus): Promise<boolean> {
     const connResult = await this.db.getWriteConnection();
     if (!connResult) return false;
     const { conn } = connResult;

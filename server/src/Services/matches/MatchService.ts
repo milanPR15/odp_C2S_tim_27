@@ -11,6 +11,7 @@ import { ILoggerService } from "../../Domain/services/logger/ILoggerService";
 import { TournamentFormat } from "../../Domain/enums/TournamentFormat";
 import { Team } from "../../Domain/models/Team";
 import { Match } from "../../Domain/models/Match";
+import { TournamentRegistration } from "../../Domain/models/TournamentRegistration";
 
 type BracketParticipant = {
   teamId: number;
@@ -370,7 +371,7 @@ export class MatchService implements IMatchService {
   ): Promise<Result<void>> {
     try {
         const captainTeamId = await this.matchReadRepo.getPlayerTeam(matchId, captainId);
-        if (captainTeamId === null) {
+        if (captainTeamId === 0) {
           return { success: false, error: "Only the team captain can add players to the match", statusCode: 403 };
         }
 
@@ -408,7 +409,7 @@ export class MatchService implements IMatchService {
       const isSelf = captainId === userId;
 
       let isCaptain = false;
-      if (captainTeamId !== null) {
+      if (captainTeamId !== 0) {
         isCaptain = await this.teamReadRepo.isUserCaptain(captainTeamId, captainId);
       }
 
@@ -454,9 +455,9 @@ export class MatchService implements IMatchService {
 
       const regs = await this.tournamentRegistrationReadRepo.findByTournament(tournamentId);
       const confirmedTeamIds = regs
-        .filter((r: any) => r.status === 'confirmed' || r.status === 1)
-        .map((r: any) => r.team_id)
-        .filter((id: any) => !!id);
+        .filter((r: TournamentRegistration) => r.status === 'confirmed')
+        .map((r: TournamentRegistration) => r.team_id)
+        .filter((id: number) => !!id);
 
       teams = confirmedTeamIds.length > 0 ? await this.teamReadRepo.findByIds(confirmedTeamIds) : [];
 
